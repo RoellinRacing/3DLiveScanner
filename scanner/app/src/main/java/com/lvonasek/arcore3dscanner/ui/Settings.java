@@ -34,8 +34,8 @@ public class Settings extends PreferenceActivity {
     setStyle(getWindow());
 
     //set depth sensor settings
-    ((CheckBoxPreference)findPreference(getString(R.string.pref_depth))).setChecked(AbstractActivity.isTofOn(this));
-    findPreference(getString(R.string.pref_depth)).setEnabled(AbstractActivity.isTofSupported(this));
+    ((CheckBoxPreference)findPreference(getString(R.string.pref_depth))).setChecked(true);
+    findPreference(getString(R.string.pref_depth)).setEnabled(true);
 
     //update items
     keepUpdated((ListPreference) findPreference(getString(R.string.pref_resolution)));
