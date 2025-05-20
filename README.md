@@ -14,3 +14,6 @@ The main project of this repository containing 3D Live Scanner: https://youtu.be
 ## Tests
 * dataset_extractor is a Linux program to extract point cloud from dataset captured by 3D scanner in PLY format
 * dataset_viewer is a Linux program for viewing dataset captured by 3D scanner
+
+## Download Built App
+scannerbuild2.zip 
