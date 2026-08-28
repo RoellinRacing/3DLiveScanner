@@ -172,6 +172,58 @@
     <string name="screenshot">Snímek obrazovky</string>
     <string name="videoshot">Rotující video</string>
 
+    <!-- MAX runtime and diagnostics !-->
+    <string name="scan_runtime_unavailable_title">3D skenování není k dispozici</string>
+    <string name="scan_runtime_unavailable_message">ARCore ani Huawei AR Engine na tomto zařízení nedokázaly spustit skutečnou skenovací relaci. Vytvořte a sdílejte zprávu o zařízení, abychom mohli diagnostikovat běhové prostředí na Xiaomi bez dohadů o podpoře zařízení.</string>
+    <string name="diagnostics_create_share">Vytvořit a sdílet diagnostiku</string>
+    <string name="diagnostics_share_chooser">Sdílet diagnostiku zařízení</string>
+    <string name="diagnostics_failed">Zprávu o zařízení se nepodařilo vytvořit nebo sdílet.</string>
+
+    <!-- Engineering export !-->
+    <string name="export_title">Technický export</string>
+    <string name="export_stl_mm">STL · milimetry</string>
+    <string name="export_3mf_mm">3MF · milimetry</string>
+    <string name="export_ply_mesh">PLY · síť v metrech</string>
+    <string name="export_obj_textured">OBJ-ZIP · s texturou</string>
+    <string name="export_save_drive">Uložit do Souborů / na Disk Google</string>
+    <string name="export_share_send">Sdílet / odeslat</string>
+    <string name="export_saved">Export byl uložen</string>
+    <string name="export_failed">Export se nezdařil</string>
+
+    <!-- Depth capabilities and scan coach !-->
+    <string name="depth_hardware_title">Použít hardwarové snímání hloubky</string>
+    <string name="depth_hardware_summary">Využívá fyzický proud hloubkových dat zpřístupněný prostředím AR. Android nemusí uvést, zda pochází ze senzoru ToF, stereokamery nebo strukturovaného světla.</string>
+    <string name="depth_hardware_unavailable_title">Hardwarové snímání hloubky není k dispozici</string>
+    <string name="depth_computed_summary">ARCore může stále vypočítat hloubku z pohybu kamery. Laserové automatické ostření není LiDAR ani hloubková mapa.</string>
+    <string name="depth_no_depth_summary">Není k dispozici hardwarové snímání hloubky ani režim hloubky ARCore. Skenování využívá charakteristické body a překrytí snímků.</string>
+    <string name="scan_coach_tracking_jump">Skok sledování – pozastavte skenování a vraťte se k poslední dobře naskenované ploše.</string>
+    <string name="scan_coach_tracking_lost">Sledování bylo ztraceno – zamiřte na členitý povrch a pohybujte se pomalu.</string>
+    <string name="scan_coach_tracking_init">Inicializace sledování – pohybujte se pomalu kolem povrchu s výraznou texturou.</string>
+    <string name="scan_coach_thermal_warning">Zařízení se zahřívá – může začít omezování výkonu.</string>
+    <string name="scan_coach_thermal_critical">Zařízení je příliš horké – pozastavte skenování, než se sníží jeho kvalita.</string>
+    <string name="scan_coach_blur_risk">Pohybujte se pomaleji – hrozí vysoké riziko rozmazání pohybem.</string>
+    <string name="scan_coach_no_depth">ARCore za běhu neposkytuje data o hloubce – skenujte pomalu s velkým překrytím.</string>
+    <string name="scan_5mm">5 mm · Malý předmět (experimentální)</string>
+    <string name="scan_8mm">8 mm · Objekt s vysokou úrovní detailů</string>
+
+    <!-- Measurement !-->
+    <string name="measure">Měření</string>
+    <string name="measure_done">Měření je aktivní</string>
+    <string name="measure_undo">Poslední</string>
+    <string name="measure_clear">Vymazat</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">Nebyl nalezen žádný stabilní bod povrchu</string>
+    <string name="measure_need_pair">Nejprve dokončete měření</string>
+    <string name="measure_scale_title">Kalibrace TrueScale</string>
+    <string name="measure_scale_message">Zadejte známou délku v milimetrech. Měřítko celého modelu a všech exportů bude změněno rovnoměrně.</string>
+    <string name="measure_apply">Změnit měřítko modelu</string>
+    <string name="measure_scale_done">Měřítko modelu bylo zkalibrováno</string>
+    <string name="measure_scale_failed">Měřítko modelu se nepodařilo změnit</string>
+    <string name="measure_invalid">Neplatná délka</string>
+    <string name="measure_quality_good">STABILNÍ</string>
+    <string name="measure_quality_medium">OVĚŘIT</string>
+    <string name="measure_quality_low">NESTABILNÍ</string>
+
     <string-array name="shares">
         <item>Android dialog</item>
         <item>Online konvertor</item>

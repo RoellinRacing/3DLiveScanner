@@ -30,6 +30,11 @@
     <string name="resolve_manually">A probléma megoldása</string>
     <string name="show_normals">Normálok megjelenítése</string>
     <string name="photo_mode">Fotó üzemmód</string>
+    <string name="scan_runtime_unavailable_title">A 3D-s szkennelés nem érhető el</string>
+    <string name="scan_runtime_unavailable_message">Sem az ARCore, sem a Huawei AR Engine nem tudott valódi szkennelési munkamenetet indítani ezen az eszközön. Hozza létre és ossza meg az eszközjelentést, hogy találgatás nélkül diagnosztizálhassuk a Xiaomi futtatókörnyezetét.</string>
+    <string name="diagnostics_create_share">Diagnosztika létrehozása és megosztása</string>
+    <string name="diagnostics_share_chooser">Eszközdiagnosztika megosztása</string>
+    <string name="diagnostics_failed">Az eszközjelentést nem sikerült létrehozni vagy megosztani.</string>
 
     <!-- Sketchfab uploader !-->
     <string name="description">Leírás:</string>
@@ -58,6 +63,15 @@
     <string name="export_floorplan">Exportálás alaprajzként</string>
     <string name="export_pointcloud">Exportálás pointcloud</string>
     <string name="export_model">Exportálás 3D modellként</string>
+    <string name="export_title">Mérnöki exportálás</string>
+    <string name="export_stl_mm">STL · milliméter</string>
+    <string name="export_3mf_mm">3MF · milliméter</string>
+    <string name="export_ply_mesh">PLY · háló méterben</string>
+    <string name="export_obj_textured">OBJ-ZIP · textúrával</string>
+    <string name="export_save_drive">Mentés a Fájlokba / Google Drive-ra</string>
+    <string name="export_share_send">Megosztás / küldés</string>
+    <string name="export_saved">Az exportálás mentve</string>
+    <string name="export_failed">Az exportálás sikertelen</string>
     <string name="profile_resolution">Felbontás</string>
     <string name="poisson">Rekonstrukció elemzése</string>
     <string name="poisson_summary">Engedélyezze az utófeldolgozási algoritmust a modellgeometriában lévő lyukak kijavításához, vegye figyelembe, hogy ez az algoritmus nem működik jól a nyitott tereknél, és meghosszabbíthatja az utófeldolgozást.</string>
@@ -78,6 +92,18 @@
     <string name="offset_summary">Az eltolás hozzáadása a geometriához lehetővé teszi vékony objektumok beolvasását mindkét oldalról. Ezzel az opcióval a geometria kevésbé pontos.</string>
     <string name="depth_sensor">Mélységérzékelő használata</string>
     <string name="depth_sensor_summary">Az aktív mélységérzékelő pontosabb és további részleteket szkennel.</string>
+    <string name="depth_hardware_title">Hardveres mélység használata</string>
+    <string name="depth_hardware_summary">Az AR-futtatókörnyezet által biztosított fizikai mélységi adatfolyamot használja. Az Android nem feltétlenül jelzi, hogy az adat ToF-, sztereó vagy strukturáltfény-érzékelőtől származik-e.</string>
+    <string name="depth_hardware_unavailable_title">A hardveres mélység nem érhető el</string>
+    <string name="depth_computed_summary">Az ARCore a kamera mozgásából továbbra is képes mélységet számítani. A lézeres autofókusz nem LiDAR, és nem szolgáltat mélységtérképet.</string>
+    <string name="depth_no_depth_summary">Sem hardveres, sem ARCore-mélységi mód nem érhető el. A szkennelés jellemzőpontokat és képátfedést használ.</string>
+    <string name="scan_coach_tracking_jump">Követési ugrás – állítsa meg a szkennelést, és térjen vissza az utolsó jól beolvasott felülethez.</string>
+    <string name="scan_coach_tracking_lost">A követés megszakadt – irányítsa a kamerát egy részletgazdag felületre, és mozogjon lassan.</string>
+    <string name="scan_coach_tracking_init">Követés inicializálása – mozogjon lassan egy textúrált felület körül.</string>
+    <string name="scan_coach_thermal_warning">Az eszköz felmelegedett – hamarosan teljesítménykorlátozás kezdődhet.</string>
+    <string name="scan_coach_thermal_critical">Az eszköz túl forró – tartson szünetet, mielőtt romlik a szkennelés minősége.</string>
+    <string name="scan_coach_blur_risk">Mozogjon lassabban – magas a bemozdulás kockázata.</string>
+    <string name="scan_coach_no_depth">Futás közben nincs ARCore-mélység – szkenneljen lassan, nagy képátfedéssel.</string>
     <string name="gps">A GPS segítségével jelölje be a pozíciót</string>
     <string name="gps_summary">GPS-címke segítségével meg lehet jeleníteni a térképen, ahol a modellt rögzítették.</string>
     <string name="fullhd">Készítsen fullHD fényképeket</string>
@@ -165,6 +191,8 @@
     <string name="scan_rewind">Tekerje vissza a beolvasási folyamatot abba az állapotba, ahonnan folytatni kívánja.</string>
 
     <!-- Scan dialog !-->
+    <string name="scan_5mm">5 mm · Kis alkatrész (kísérleti)</string>
+    <string name="scan_8mm">8 mm · Nagy részletességű tárgy</string>
     <string name="scan_1cm">1 cm - Kicsi szoba</string>
     <string name="scan_2cm">2 cm - Közepes</string>
     <string name="scan_4cm">4 cm - Nagy</string>
@@ -176,6 +204,9 @@
         <item>Android dialog</item>
         <item>Online konverter</item>
         <item>Sketchfab</item>
+    </string-array>
+
+    <string-array name="empty">
     </string-array>
 
     <!-- Branded apps texts !-->
@@ -190,4 +221,20 @@
     <string name="fd_scan_type_tree">Fa</string>
     <string name="fd_scan_type_other">Egyéb</string>
     <string name="fd_scan_limit">Maximális mennyiségű letapogatás elérése. A folytatáshoz töröljön néhány vizsgálatot, vagy további információkért forduljon a office@forestdesign.ro címre.</string>
+    <string name="measure">Mérés</string>
+    <string name="measure_done">A mérés aktív</string>
+    <string name="measure_undo">Legutóbbi törlése</string>
+    <string name="measure_clear">Összes törlése</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">Nem található stabil felületi pont</string>
+    <string name="measure_need_pair">Előbb adjon meg egy teljes mérést</string>
+    <string name="measure_scale_title">A TrueScale kalibrálása</string>
+    <string name="measure_scale_message">Adja meg az ismert hosszt milliméterben. A teljes modell és minden export egységesen át lesz méretezve.</string>
+    <string name="measure_apply">Modell méretezése</string>
+    <string name="measure_scale_done">A modell méretaránya kalibrálva</string>
+    <string name="measure_scale_failed">A modellt nem sikerült átméretezni</string>
+    <string name="measure_invalid">Érvénytelen hossz</string>
+    <string name="measure_quality_good">STABIL</string>
+    <string name="measure_quality_medium">ELLENŐRIZENDŐ</string>
+    <string name="measure_quality_low">INSTABIL</string>
 </resources>

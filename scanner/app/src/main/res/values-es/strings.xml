@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <!-- File Manager !-->
     <string name="no_data">No hay modelos 3D</string>
     <string name="migrating_data">Migrando los datos a una nueva carpeta, por favor espere…</string>
@@ -58,6 +59,15 @@
     <string name="export_floorplan">Exportar como plano</string>
     <string name="export_pointcloud">Exportar como pointcloud</string>
     <string name="export_model">Exportar como modelo 3D</string>
+    <string name="export_title">Exportación para ingeniería</string>
+    <string name="export_stl_mm">STL · milímetros</string>
+    <string name="export_3mf_mm">3MF · milímetros</string>
+    <string name="export_ply_mesh">PLY · malla en metros</string>
+    <string name="export_obj_textured">ZIP con OBJ · con textura</string>
+    <string name="export_save_drive">Guardar en Archivos / Google Drive</string>
+    <string name="export_share_send">Compartir / enviar</string>
+    <string name="export_saved">Exportación guardada</string>
+    <string name="export_failed">Error al exportar</string>
     <string name="profile_resolution">Resolución</string>
     <string name="poisson">Sumación de Poisson</string>
     <string name="poisson_summary">Habilite el algoritmo de posprocesamiento para corregir agujeros en la geometría del modelo, tenga en cuenta que este algoritmo no funciona bien con espacios abiertos y puede hacer que el posprocesamiento sea más largo.</string>
@@ -78,6 +88,11 @@
     <string name="offset_summary">Agregar desplazamiento a la geometría permite escanear objetos delgados desde ambos lados. Esta opción hace que la geometría sea menos precisa.</string>
     <string name="depth_sensor">Utilizar el sensor de profundidad</string>
     <string name="depth_sensor_summary">El sensor de profundidad activo es más preciso y escanea más detalles.</string>
+    <string name="depth_hardware_title">Usar profundidad por hardware</string>
+    <string name="depth_hardware_summary">Utiliza el flujo de profundidad físico que proporciona el entorno de ejecución de RA. Es posible que Android no indique si procede de ToF, visión estereoscópica o luz estructurada.</string>
+    <string name="depth_hardware_unavailable_title">Profundidad por hardware no disponible</string>
+    <string name="depth_computed_summary">ARCore aún puede calcular la profundidad a partir del movimiento de la cámara. El enfoque automático por láser no es LiDAR ni genera un mapa de profundidad.</string>
+    <string name="depth_no_depth_summary">No hay ningún modo de profundidad por hardware o de ARCore disponible. El escaneo utiliza puntos característicos y el solapamiento de imágenes.</string>
     <string name="gps">Usa GPS para etiquetar la posición</string>
     <string name="gps_summary">El uso de una etiqueta GPS es posible mostrar en el mapa dónde se capturó el modelo.</string>
     <string name="fullhd">Captura fotos fullHD</string>
@@ -164,13 +179,50 @@
     <string name="scan_finish">Guardar finalizará el escaneo.</string>
     <string name="scan_rewind">Rebobine el proceso de escaneo hasta un estado desde el que desee continuar.</string>
 
+    <!-- Runtime diagnostics and scan coach -->
+    <string name="scan_runtime_unavailable_title">Escaneo 3D no disponible</string>
+    <string name="scan_runtime_unavailable_message">Ni ARCore ni Huawei AR Engine han podido iniciar una sesión de escaneo real en este dispositivo. Crea y comparte el informe del dispositivo para que podamos diagnosticar el entorno de ejecución del Xiaomi sin hacer suposiciones sobre su compatibilidad.</string>
+    <string name="diagnostics_create_share">Crear y compartir diagnóstico</string>
+    <string name="diagnostics_share_chooser">Compartir diagnóstico del dispositivo</string>
+    <string name="diagnostics_failed">No se ha podido crear ni compartir el informe del dispositivo.</string>
+    <string name="scan_coach_tracking_init">Inicializando el seguimiento: muévete despacio alrededor de una superficie con textura.</string>
+    <string name="scan_coach_tracking_lost">Seguimiento perdido: apunta a una superficie con detalles y muévete despacio.</string>
+    <string name="scan_coach_tracking_jump">Salto en el seguimiento: pausa y vuelve a la última superficie bien escaneada.</string>
+    <string name="scan_coach_no_depth">No hay profundidad de ARCore durante la ejecución: escanea despacio y mantén un solapamiento amplio.</string>
+    <string name="scan_coach_blur_risk">Muévete más despacio: existe un riesgo elevado de desenfoque por movimiento.</string>
+    <string name="scan_coach_thermal_warning">El dispositivo está caliente: es posible que pronto se limite el rendimiento.</string>
+    <string name="scan_coach_thermal_critical">El dispositivo está demasiado caliente: pausa antes de que se reduzca la calidad del escaneo.</string>
+
     <!-- Scan dialog !-->
     <string name="scan_1cm">1 cm - Cuarto pequeño</string>
     <string name="scan_2cm">2 cm - Interior</string>
     <string name="scan_4cm">4 cm - Exterior</string>
     <string name="scan_8cm">8 cm - Análisis rápido</string>
+    <string name="scan_5mm">5 mm · Pieza pequeña (experimental)</string>
+    <string name="scan_8mm">8 mm · Objeto de gran detalle</string>
     <string name="screenshot">Captura de pantalla</string>
     <string name="videoshot">Vídeo rotativo</string>
+
+    <!-- Measurement and TrueScale -->
+    <string name="measure">Medir</string>
+    <string name="measure_done">Medición activa</string>
+    <string name="measure_undo">Última medición</string>
+    <string name="measure_clear">Borrar</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">No se ha encontrado ningún punto estable en la superficie</string>
+    <string name="measure_need_pair">Primero establece una medición completa</string>
+    <string name="measure_scale_title">Calibrar TrueScale</string>
+    <string name="measure_scale_message">Introduce la longitud conocida en milímetros. Todo el modelo y todas las exportaciones se escalarán de manera uniforme.</string>
+    <string name="measure_apply">Escalar modelo</string>
+    <string name="measure_scale_done">Escala del modelo calibrada</string>
+    <string name="measure_scale_failed">No se ha podido escalar el modelo</string>
+    <string name="measure_invalid">Longitud no válida</string>
+    <string name="measure_quality_good">ESTABLE</string>
+    <string name="measure_quality_medium">COMPROBAR</string>
+    <string name="measure_quality_low">INESTABLE</string>
+
+    <string-array name="empty">
+    </string-array>
 
     <string-array name="shares">
         <item>Diálogo con Android</item>

@@ -30,6 +30,11 @@
     <string name="resolve_manually">Résoudre le problème</string>
     <string name="show_normals">Afficher les normales</string>
     <string name="photo_mode">Mode photo</string>
+    <string name="scan_runtime_unavailable_title">Numérisation 3D indisponible</string>
+    <string name="scan_runtime_unavailable_message">Ni ARCore ni Huawei AR Engine n’a pu démarrer une véritable session de numérisation sur cet appareil. Créez et partagez le rapport de l’appareil afin que nous puissions diagnostiquer l’environnement d’exécution Xiaomi sans supposer sa compatibilité.</string>
+    <string name="diagnostics_create_share">Créer et partager le diagnostic</string>
+    <string name="diagnostics_share_chooser">Partager le diagnostic de l’appareil</string>
+    <string name="diagnostics_failed">Le rapport de l’appareil n’a pas pu être créé ou partagé.</string>
 
     <!-- Sketchfab uploader !-->
     <string name="description">La description:</string>
@@ -58,6 +63,15 @@
     <string name="export_floorplan">Exporter comme plan</string>
     <string name="export_pointcloud">Exporter comme nuage de points</string>
     <string name="export_model">Exportation en tant que modèle 3D</string>
+    <string name="export_title">Exportation technique</string>
+    <string name="export_stl_mm">STL · millimètres</string>
+    <string name="export_3mf_mm">3MF · millimètres</string>
+    <string name="export_ply_mesh">PLY · maillage en mètres</string>
+    <string name="export_obj_textured">OBJ-ZIP · texturé</string>
+    <string name="export_save_drive">Enregistrer dans Fichiers / Google Drive</string>
+    <string name="export_share_send">Partager / envoyer</string>
+    <string name="export_saved">Exportation enregistrée</string>
+    <string name="export_failed">Échec de l’exportation</string>
     <string name="profile_resolution">Résolution</string>
     <string name="poisson">Reconstruction avec l\'algorithme Poisson</string>
     <string name="poisson_summary">Activez l\'algorithme de post-traitement pour boucher les trous dans la géométrie du modèle, notez que cet algorithme ne fonctionne pas bien avec les espaces ouverts et qu\'il peut allonger le post-traitement.</string>
@@ -78,6 +92,18 @@
     <string name="offset_summary">L\'ajout d\'un décalage à la géométrie permet de scanner des objets fins des deux côtés. Cette option rend la géométrie moins précise.</string>
     <string name="depth_sensor">Utiliser le capteur de profondeur</string>
     <string name="depth_sensor_summary">L\'utilisation du capteur de profondeur permet un scan plus précis avec plus de détails.</string>
+    <string name="depth_hardware_title">Utiliser le capteur de profondeur matériel</string>
+    <string name="depth_hardware_summary">Utilise le flux de profondeur physique fourni par l’environnement d’exécution AR. Android peut ne pas indiquer s’il provient d’un capteur ToF, d’une caméra stéréo ou d’une lumière structurée.</string>
+    <string name="depth_hardware_unavailable_title">Profondeur matérielle indisponible</string>
+    <string name="depth_computed_summary">ARCore peut tout de même calculer la profondeur à partir du mouvement de la caméra. L’autofocus laser n’est ni un LiDAR ni une carte de profondeur.</string>
+    <string name="depth_no_depth_summary">Aucun capteur matériel ni mode de profondeur ARCore n’est disponible. La numérisation utilise les points caractéristiques et le chevauchement des images.</string>
+    <string name="scan_coach_tracking_jump">Saut de suivi – faites une pause et revenez à la dernière surface correctement numérisée.</string>
+    <string name="scan_coach_tracking_lost">Suivi perdu – visez une surface détaillée et déplacez-vous lentement.</string>
+    <string name="scan_coach_tracking_init">Initialisation du suivi – déplacez-vous lentement autour d’une surface texturée.</string>
+    <string name="scan_coach_thermal_warning">L’appareil chauffe – la limitation des performances peut commencer.</string>
+    <string name="scan_coach_thermal_critical">L’appareil est trop chaud – faites une pause avant que la qualité de numérisation ne diminue.</string>
+    <string name="scan_coach_blur_risk">Déplacez-vous plus lentement – risque élevé de flou de mouvement.</string>
+    <string name="scan_coach_no_depth">Profondeur ARCore indisponible pendant l’exécution – numérisez lentement avec un fort chevauchement.</string>
     <string name="gps">Utilisez le GPS pour marquer la position</string>
     <string name="gps_summary">L\'utilisation d\'une balise GPS permet de pouvoir afficher sur la carte où le modèle a été capturé.</string>
     <string name="fullhd">Capturez des photos FullHD</string>
@@ -165,6 +191,8 @@
     <string name="scan_rewind">Revenir en arrière dans le processus de numérisation jusqu\'à un état à partir duquel vous voulez continuer.</string>
 
     <!-- Scan dialog !-->
+    <string name="scan_5mm">5 mm · Petite pièce (expérimental)</string>
+    <string name="scan_8mm">8 mm · Objet très détaillé</string>
     <string name="scan_1cm">1 cm - Petites pièces</string>
     <string name="scan_2cm">2 cm - Intérieurs</string>
     <string name="scan_4cm">4 cm - Extérieur</string>
@@ -176,6 +204,9 @@
         <item>Dialogue Android</item>
         <item>Convertisseur en ligne</item>
         <item>Sketchfab</item>
+    </string-array>
+
+    <string-array name="empty">
     </string-array>
 
     <!-- Branded apps texts !-->
@@ -190,4 +221,20 @@
     <string name="fd_scan_type_tree">Arbre</string>
     <string name="fd_scan_type_other">Autre</string>
     <string name="fd_scan_limit">Le nombre maximal d\'analyses est atteint. Supprimez certains scans pour continuer ou contactez office@forestdesign.ro pour plus d\'informations.</string>
+    <string name="measure">Mesurer</string>
+    <string name="measure_done">Mesure active</string>
+    <string name="measure_undo">Annuler</string>
+    <string name="measure_clear">Effacer</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">Aucun point de surface stable trouvé</string>
+    <string name="measure_need_pair">Effectuez d’abord une mesure complète</string>
+    <string name="measure_scale_title">Étalonner TrueScale</string>
+    <string name="measure_scale_message">Saisissez la longueur connue en millimètres. Le modèle complet et toutes les exportations seront mis à l’échelle uniformément.</string>
+    <string name="measure_apply">Mettre le modèle à l’échelle</string>
+    <string name="measure_scale_done">Échelle du modèle étalonnée</string>
+    <string name="measure_scale_failed">Le modèle n’a pas pu être mis à l’échelle</string>
+    <string name="measure_invalid">Longueur non valide</string>
+    <string name="measure_quality_good">STABLE</string>
+    <string name="measure_quality_medium">À VÉRIFIER</string>
+    <string name="measure_quality_low">INSTABLE</string>
 </resources>

@@ -52,6 +52,7 @@ import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Locale;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -1081,7 +1082,7 @@ public class Main extends AbstractActivity implements View.OnClickListener,
         mGLView.stop();
         finish();
         Date date = new Date() ;
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
         final String filename = dateFormat.format(date);
         File input = new File(getTempPath(), "model" + Exporter.EXT_OBJ);
         if (JNI.save(input.getAbsolutePath().getBytes())) {

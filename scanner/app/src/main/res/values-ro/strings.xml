@@ -190,4 +190,52 @@
     <string name="fd_scan_type_tree">Arbore</string>
     <string name="fd_scan_type_other">Altele</string>
     <string name="fd_scan_limit">Numărul maxim de scanări atins. Ștergeți unele scanări pentru a continua sau contactați office@forestdesign.ro pentru mai multe informații.</string>
+
+    <!-- MAX runtime, export, depth and measurement !-->
+    <string name="scan_runtime_unavailable_title">Scanarea 3D nu este disponibilă</string>
+    <string name="scan_runtime_unavailable_message">Nici ARCore, nici Huawei AR Engine nu au putut porni o sesiune reală de scanare pe acest dispozitiv. Creați și distribuiți raportul dispozitivului pentru a putea diagnostica mediul de execuție Xiaomi fără a presupune compatibilitatea dispozitivului.</string>
+    <string name="diagnostics_create_share">Creați și distribuiți diagnosticul</string>
+    <string name="diagnostics_share_chooser">Distribuiți diagnosticul dispozitivului</string>
+    <string name="diagnostics_failed">Raportul dispozitivului nu a putut fi creat sau distribuit.</string>
+    <string name="export_title">Export tehnic</string>
+    <string name="export_stl_mm">STL · milimetri</string>
+    <string name="export_3mf_mm">3MF · milimetri</string>
+    <string name="export_ply_mesh">PLY · plasă în metri</string>
+    <string name="export_obj_textured">OBJ-ZIP · cu textură</string>
+    <string name="export_save_drive">Salvați în Fișiere / Google Drive</string>
+    <string name="export_share_send">Distribuiți / trimiteți</string>
+    <string name="export_saved">Export salvat</string>
+    <string name="export_failed">Exportul a eșuat</string>
+    <string name="depth_hardware_title">Utilizați adâncimea hardware</string>
+    <string name="depth_hardware_summary">Utilizează fluxul fizic de adâncime expus de mediul AR. Android poate să nu indice dacă acesta provine de la ToF, stereo sau lumină structurată.</string>
+    <string name="depth_hardware_unavailable_title">Adâncimea hardware nu este disponibilă</string>
+    <string name="depth_computed_summary">ARCore poate calcula în continuare adâncimea din mișcarea camerei. Autofocalizarea laser nu este LiDAR și nu furnizează o hartă de adâncime.</string>
+    <string name="depth_no_depth_summary">Nu este disponibil niciun mod de adâncime hardware sau ARCore. Scanarea utilizează puncte caracteristice și suprapunerea imaginilor.</string>
+    <string name="scan_coach_tracking_jump">Salt de urmărire – întrerupeți și reveniți la ultima suprafață scanată corect.</string>
+    <string name="scan_coach_tracking_lost">Urmărire pierdută – îndreptați camera spre o suprafață cu detalii și mișcați lent.</string>
+    <string name="scan_coach_tracking_init">Se inițializează urmărirea – mișcați lent în jurul unei suprafețe texturate.</string>
+    <string name="scan_coach_thermal_warning">Dispozitivul este cald – limitarea performanței poate începe.</string>
+    <string name="scan_coach_thermal_critical">Dispozitivul este prea fierbinte – întrerupeți înainte ca nivelul calității scanării să scadă.</string>
+    <string name="scan_coach_blur_risk">Mișcați mai lent – risc ridicat de neclaritate cauzată de mișcare.</string>
+    <string name="scan_coach_no_depth">Adâncimea ARCore nu este disponibilă în timpul rulării – scanați lent, cu o suprapunere mare.</string>
+    <string name="scan_5mm">5 mm · Piesă mică (experimental)</string>
+    <string name="scan_8mm">8 mm · Obiect cu detalii fine</string>
+    <string-array name="empty">
+    </string-array>
+    <string name="measure">Măsurare</string>
+    <string name="measure_done">Măsurare activă</string>
+    <string name="measure_undo">Ultima</string>
+    <string name="measure_clear">Ștergeți</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">Nu a fost găsit niciun punct stabil pe suprafață</string>
+    <string name="measure_need_pair">Setați mai întâi o măsurătoare completă</string>
+    <string name="measure_scale_title">Calibrare TrueScale</string>
+    <string name="measure_scale_message">Introduceți lungimea cunoscută în milimetri. Modelul complet și toate exporturile vor fi scalate uniform.</string>
+    <string name="measure_apply">Scalați modelul</string>
+    <string name="measure_scale_done">Scara modelului a fost calibrată</string>
+    <string name="measure_scale_failed">Modelul nu a putut fi scalat</string>
+    <string name="measure_invalid">Lungime nevalidă</string>
+    <string name="measure_quality_good">STABILĂ</string>
+    <string name="measure_quality_medium">VERIFICAȚI</string>
+    <string name="measure_quality_low">INSTABILĂ</string>
 </resources>

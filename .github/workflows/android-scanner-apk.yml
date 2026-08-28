@@ -48,7 +48,6 @@ jobs:
       - name: Compile unit-test sources
         run: ./gradlew --no-daemon --stacktrace testDebugUnitTest
       - name: Android lint
-        continue-on-error: true
         run: ./gradlew --no-daemon --stacktrace lintDebug
       - name: Build debug APK
         run: ./gradlew --no-daemon --stacktrace assembleDebug

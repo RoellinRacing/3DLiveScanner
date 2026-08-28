@@ -190,4 +190,52 @@
     <string name="fd_scan_type_tree">树</string>
     <string name="fd_scan_type_other">其他</string>
     <string name="fd_scan_limit">已达到最大的扫描量。删除一些扫描来继续，或联系office@forestdesign.ro，以获得更多信息。</string>
+
+    <!-- MAX runtime, export, depth and measurement !-->
+    <string name="scan_runtime_unavailable_title">3D 扫描不可用</string>
+    <string name="scan_runtime_unavailable_message">ARCore 和华为 AR Engine 均无法在此设备上启动实际扫描会话。请创建并分享设备报告，以便我们在不臆测设备支持情况的前提下诊断小米运行环境。</string>
+    <string name="diagnostics_create_share">创建并分享诊断报告</string>
+    <string name="diagnostics_share_chooser">分享设备诊断报告</string>
+    <string name="diagnostics_failed">无法创建设备报告或将其分享。</string>
+    <string name="export_title">工程导出</string>
+    <string name="export_stl_mm">STL · 毫米</string>
+    <string name="export_3mf_mm">3MF · 毫米</string>
+    <string name="export_ply_mesh">PLY · 以米为单位的网格</string>
+    <string name="export_obj_textured">OBJ-ZIP · 带纹理</string>
+    <string name="export_save_drive">保存到“文件”/ Google Drive</string>
+    <string name="export_share_send">分享 / 发送</string>
+    <string name="export_saved">导出已保存</string>
+    <string name="export_failed">导出失败</string>
+    <string name="depth_hardware_title">使用硬件深度</string>
+    <string name="depth_hardware_summary">使用 AR 运行环境提供的物理深度流。Android 可能不会说明其来源是 ToF、立体视觉还是结构光。</string>
+    <string name="depth_hardware_unavailable_title">硬件深度不可用</string>
+    <string name="depth_computed_summary">ARCore 仍可根据相机运动计算深度。激光自动对焦不是 LiDAR，也不能生成深度图。</string>
+    <string name="depth_no_depth_summary">硬件深度和 ARCore 深度模式均不可用。扫描将使用特征点和图像重叠区域。</string>
+    <string name="scan_coach_tracking_jump">跟踪跳变 – 请暂停并返回上一个扫描良好的表面。</string>
+    <string name="scan_coach_tracking_lost">跟踪丢失 – 请对准细节丰富的表面并缓慢移动。</string>
+    <string name="scan_coach_tracking_init">正在初始化跟踪 – 请围绕带纹理的表面缓慢移动。</string>
+    <string name="scan_coach_thermal_warning">设备温度较高 – 可能即将限制性能。</string>
+    <string name="scan_coach_thermal_critical">设备过热 – 请暂停，以免扫描质量下降。</string>
+    <string name="scan_coach_blur_risk">请减慢移动速度 – 运动模糊风险较高。</string>
+    <string name="scan_coach_no_depth">运行时无 ARCore 深度 – 请缓慢扫描并保持较大的重叠区域。</string>
+    <string name="scan_5mm">5 毫米 · 小型零件（实验性）</string>
+    <string name="scan_8mm">8 毫米 · 高细节物体</string>
+    <string-array name="empty">
+    </string-array>
+    <string name="measure">测量</string>
+    <string name="measure_done">测量已启用</string>
+    <string name="measure_undo">上一个</string>
+    <string name="measure_clear">清除</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">未找到稳定的表面点</string>
+    <string name="measure_need_pair">请先完成一次测量</string>
+    <string name="measure_scale_title">校准 TrueScale</string>
+    <string name="measure_scale_message">请输入已知长度（毫米）。整个模型及所有导出内容都将按相同比例缩放。</string>
+    <string name="measure_apply">缩放模型</string>
+    <string name="measure_scale_done">模型比例已校准</string>
+    <string name="measure_scale_failed">无法缩放模型</string>
+    <string name="measure_invalid">长度无效</string>
+    <string name="measure_quality_good">稳定</string>
+    <string name="measure_quality_medium">检查</string>
+    <string name="measure_quality_low">不稳定</string>
 </resources>

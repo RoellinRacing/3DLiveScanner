@@ -190,4 +190,56 @@
     <string name="fd_scan_type_tree">Albero</string>
     <string name="fd_scan_type_other">Altro</string>
     <string name="fd_scan_limit">Raggiunto il numero massimo di scansioni. Cancella alcune scansioni per continuare o contatta office@forestdesign.ro per ulteriori informazioni.</string>
+
+    <!-- MAX runtime and diagnostics -->
+    <string name="scan_runtime_unavailable_title">Scansione 3D non disponibile</string>
+    <string name="scan_runtime_unavailable_message">Né ARCore né Huawei AR Engine sono riusciti ad avviare una vera sessione di scansione su questo dispositivo. Crea e condividi il rapporto del dispositivo per consentirci di diagnosticare l\'ambiente di esecuzione sullo Xiaomi senza fare supposizioni sulla compatibilità.</string>
+    <string name="diagnostics_create_share">Crea e condividi la diagnostica</string>
+    <string name="diagnostics_share_chooser">Condividi la diagnostica del dispositivo</string>
+    <string name="diagnostics_failed">Impossibile creare o condividere il rapporto del dispositivo.</string>
+
+    <!-- Engineering export -->
+    <string name="export_title">Esportazione tecnica</string>
+    <string name="export_stl_mm">STL · millimetri</string>
+    <string name="export_3mf_mm">3MF · millimetri</string>
+    <string name="export_ply_mesh">PLY · mesh in metri</string>
+    <string name="export_obj_textured">OBJ-ZIP · con texture</string>
+    <string name="export_save_drive">Salva in File / Google Drive</string>
+    <string name="export_share_send">Condividi / invia</string>
+    <string name="export_saved">Esportazione salvata</string>
+    <string name="export_failed">Esportazione non riuscita</string>
+
+    <!-- Depth capabilities and scan coach -->
+    <string name="depth_hardware_title">Usa il sensore di profondità hardware</string>
+    <string name="depth_hardware_summary">Usa il flusso di profondità fisico fornito dall\'ambiente AR. Android potrebbe non indicare se proviene da ToF, stereo o luce strutturata.</string>
+    <string name="depth_hardware_unavailable_title">Sensore di profondità hardware non disponibile</string>
+    <string name="depth_computed_summary">ARCore può comunque calcolare la profondità dal movimento della fotocamera. L\'autofocus laser non è LiDAR né una mappa di profondità.</string>
+    <string name="depth_no_depth_summary">Non è disponibile alcuna modalità di profondità hardware o ARCore. La scansione utilizza punti caratteristici e la sovrapposizione delle immagini.</string>
+    <string name="scan_coach_tracking_jump">Salto del tracciamento – metti in pausa e torna all\'ultima superficie acquisita correttamente.</string>
+    <string name="scan_coach_tracking_lost">Tracciamento perso – inquadra una superficie ricca di dettagli e muoviti lentamente.</string>
+    <string name="scan_coach_tracking_init">Inizializzazione del tracciamento – muoviti lentamente attorno a una superficie con texture.</string>
+    <string name="scan_coach_thermal_warning">Il dispositivo si sta scaldando – potrebbe iniziare a limitare le prestazioni.</string>
+    <string name="scan_coach_thermal_critical">Il dispositivo è troppo caldo – metti in pausa prima che la qualità della scansione diminuisca.</string>
+    <string name="scan_coach_blur_risk">Muoviti più lentamente – rischio elevato di sfocatura da movimento.</string>
+    <string name="scan_coach_no_depth">Profondità ARCore non disponibile durante l\'esecuzione – scansiona lentamente con un\'ampia sovrapposizione.</string>
+    <string name="scan_5mm">5 mm · Pezzo piccolo (sperimentale)</string>
+    <string name="scan_8mm">8 mm · Oggetto ad alta definizione</string>
+
+    <!-- Measuring and TrueScale -->
+    <string name="measure">Misura</string>
+    <string name="measure_done">Misurazione attiva</string>
+    <string name="measure_undo">Ultima</string>
+    <string name="measure_clear">Cancella</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">Nessun punto stabile trovato sulla superficie</string>
+    <string name="measure_need_pair">Imposta prima una misura completa</string>
+    <string name="measure_scale_title">Calibra TrueScale</string>
+    <string name="measure_scale_message">Inserisci la lunghezza nota in millimetri. L\'intero modello e tutte le esportazioni verranno scalati uniformemente.</string>
+    <string name="measure_apply">Imposta la scala del modello</string>
+    <string name="measure_scale_done">Scala del modello calibrata</string>
+    <string name="measure_scale_failed">Impossibile ridimensionare il modello</string>
+    <string name="measure_invalid">Lunghezza non valida</string>
+    <string name="measure_quality_good">STABILE</string>
+    <string name="measure_quality_medium">VERIFICA</string>
+    <string name="measure_quality_low">INSTABILE</string>
 </resources>
