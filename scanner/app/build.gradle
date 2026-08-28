@@ -5,6 +5,8 @@ def arcore_libpath = "../../arcore"
 
 android {
     compileSdk = 33
+    buildToolsVersion = "33.0.1"
+    ndkVersion = "25.1.8937393"
     defaultConfig {
         applicationId = "com.lvonasek.arcore3dscanner"
         namespace ="com.lvonasek.arcore3dscanner"
