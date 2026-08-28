@@ -406,13 +406,14 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
       // up caused fragile OEM runtimes to terminate the process before the
       // project screen could even be shown.
       try {
-        if (!Compatibility.isHuaweiArEngineAvailable(this)
+        if (!Compatibility.hasKnownFatalArCoreRuntime()
+            && !Compatibility.isHuaweiArEngineAvailable(this)
             && Compatibility.isARCoreInstallRequired(this)) {
           if (ArCoreApk.getInstance().requestInstall(this, true)
               != ArCoreApk.InstallStatus.INSTALLED) {
             return;
           }
-          runtimeUsable = Compatibility.isARCoreSessionUsable(this);
+          runtimeUsable = Compatibility.isARCoreReady(this);
         }
       } catch (Throwable error) {
         Log.e(TAG, "Unable to install or update ARCore", error);
@@ -471,11 +472,14 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
   private void showScanningUnavailable() {
     new AlertDialog.Builder(this)
-        .setTitle(R.string.scan_runtime_unavailable_title)
-        .setMessage(R.string.scan_runtime_unavailable_message)
-        .setPositiveButton(R.string.diagnostics_create_share,
-            (dialog, which) -> createAndShareDiagnostics())
+        .setTitle(R.string.photo_scan_fallback_title)
+        .setMessage(R.string.photo_scan_fallback_message)
+        .setPositiveButton(R.string.photo_scan_fallback_start,
+            (dialog, which) -> startActivity(
+                new Intent(FileManager.this, PhotoDatasetActivity.class)))
         .setNegativeButton(android.R.string.cancel, null)
+        .setNeutralButton(R.string.diagnostics_create_share,
+            (dialog, which) -> createAndShareDiagnostics())
         .show();
   }
 

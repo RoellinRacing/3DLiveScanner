@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="photo_scan_fallback_title" tools:ignore="MissingTranslation">Safe photo scan</string>
+    <string name="photo_scan_fallback_message" tools:ignore="MissingTranslation">Google ARCore crashes inside its native runtime on this device. Use the safe Camera2 photo scan to capture a high-quality, calibrated dataset without ARCore. The ZIP can be saved to Google Drive or shared for photogrammetry.</string>
+    <string name="photo_scan_fallback_start" tools:ignore="MissingTranslation">Start photo scan</string>
+    <string name="photo_scan_title" tools:ignore="MissingTranslation">Photo-to-3D capture</string>
+    <string name="photo_scan_initializing" tools:ignore="MissingTranslation">Starting camera…</string>
+    <string name="photo_scan_ready" tools:ignore="MissingTranslation">%1$d photos captured</string>
+    <string name="photo_scan_hold_steady" tools:ignore="MissingTranslation">Hold steady for the next photo</string>
+    <string name="photo_scan_instruction" tools:ignore="MissingTranslation">Move slowly around the object. Keep every part visible in several neighboring photos.</string>
+    <string name="photo_scan_auto_start" tools:ignore="MissingTranslation">Auto</string>
+    <string name="photo_scan_auto_stop" tools:ignore="MissingTranslation">Stop</string>
+    <string name="photo_scan_capture" tools:ignore="MissingTranslation">Capture</string>
+    <string name="photo_scan_finish" tools:ignore="MissingTranslation">Finish</string>
+    <string name="photo_scan_camera_failed" tools:ignore="MissingTranslation">The safe camera could not be started.</string>
+    <string name="photo_scan_capture_failed" tools:ignore="MissingTranslation">The photo could not be saved.</string>
+    <string name="photo_scan_wait" tools:ignore="MissingTranslation">Wait until the current photo has been saved.</string>
+    <string name="photo_scan_need_photos" tools:ignore="MissingTranslation">Capture at least 12 photos. For a useful 3D reconstruction, 40–120 photos are recommended.</string>
+    <string name="photo_scan_discard_title" tools:ignore="MissingTranslation">Discard this capture?</string>
+    <string name="photo_scan_discard_message" tools:ignore="MissingTranslation">The captured photo dataset has not been exported yet.</string>
+    <string name="photo_scan_dataset_ready" tools:ignore="MissingTranslation">Dataset ready</string>
+    <string name="photo_scan_dataset_ready_message" tools:ignore="MissingTranslation">%1$d calibrated photos are packed as a ZIP. Save it to Files / Google Drive or share it.</string>
+    <string name="photo_scan_save_drive" tools:ignore="MissingTranslation">Files / Drive</string>
+    <string name="photo_scan_share" tools:ignore="MissingTranslation">Share</string>
+    <string name="photo_scan_continue" tools:ignore="MissingTranslation">Continue</string>
+    <string name="photo_scan_export_failed" tools:ignore="MissingTranslation">The photo dataset could not be exported.</string>
+    <string name="photo_scan_saved" tools:ignore="MissingTranslation">Photo dataset saved</string>
+    <string name="photo_scan_share_chooser" tools:ignore="MissingTranslation">Share photo-to-3D dataset</string>
+</resources>

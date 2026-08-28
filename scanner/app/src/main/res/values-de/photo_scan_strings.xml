@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="photo_scan_fallback_title">Sicherer Fotoscan</string>
+    <string name="photo_scan_fallback_message">Google ARCore stürzt auf diesem Gerät direkt im nativen Laufzeitcode ab. Nutze den sicheren Camera2-Fotoscan, um ohne ARCore einen hochwertigen, kalibrierten Bilddatensatz aufzunehmen. Das ZIP kannst du auf Google Drive speichern oder für Photogrammetrie teilen.</string>
+    <string name="photo_scan_fallback_start">Fotoscan starten</string>
+    <string name="photo_scan_title">Foto-zu-3D-Aufnahme</string>
+    <string name="photo_scan_initializing">Kamera wird gestartet…</string>
+    <string name="photo_scan_ready">%1$d Fotos aufgenommen</string>
+    <string name="photo_scan_hold_steady">Für das nächste Foto ruhig halten</string>
+    <string name="photo_scan_instruction">Bewege dich langsam um das Objekt. Jeder Bereich sollte auf mehreren benachbarten Fotos sichtbar sein.</string>
+    <string name="photo_scan_auto_start">Auto</string>
+    <string name="photo_scan_auto_stop">Stopp</string>
+    <string name="photo_scan_capture">Aufnehmen</string>
+    <string name="photo_scan_finish">Fertig</string>
+    <string name="photo_scan_camera_failed">Die sichere Kamera konnte nicht gestartet werden.</string>
+    <string name="photo_scan_capture_failed">Das Foto konnte nicht gespeichert werden.</string>
+    <string name="photo_scan_wait">Warte, bis das aktuelle Foto gespeichert ist.</string>
+    <string name="photo_scan_need_photos">Nimm mindestens 12 Fotos auf. Für eine brauchbare 3D-Rekonstruktion werden 40–120 Fotos empfohlen.</string>
+    <string name="photo_scan_discard_title">Diese Aufnahme verwerfen?</string>
+    <string name="photo_scan_discard_message">Der aufgenommene Fotodatensatz wurde noch nicht exportiert.</string>
+    <string name="photo_scan_dataset_ready">Datensatz bereit</string>
+    <string name="photo_scan_dataset_ready_message">%1$d kalibrierte Fotos wurden als ZIP verpackt. Speichere es in Dateien / Google Drive oder teile es.</string>
+    <string name="photo_scan_save_drive">Dateien / Drive</string>
+    <string name="photo_scan_share">Teilen</string>
+    <string name="photo_scan_continue">Weiter</string>
+    <string name="photo_scan_export_failed">Der Fotodatensatz konnte nicht exportiert werden.</string>
+    <string name="photo_scan_saved">Fotodatensatz gespeichert</string>
+    <string name="photo_scan_share_chooser">Foto-zu-3D-Datensatz teilen</string>
+</resources>

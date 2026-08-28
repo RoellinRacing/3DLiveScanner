@@ -11,9 +11,6 @@ import android.os.Build;
 import android.os.SystemClock;
 
 import com.google.ar.core.ArCoreApk;
-import com.google.ar.core.CameraConfig;
-import com.google.ar.core.Config;
-import com.google.ar.core.Session;
 import com.huawei.hiar.ARConfigBase;
 import com.huawei.hiar.ARSession;
 import com.huawei.hiar.ARWorldTrackingConfig;
@@ -60,29 +57,38 @@ public class Compatibility {
 
     public static boolean isARSupported(Context context) {
         if (context == null) return false;
+        if (hasKnownFatalArCoreRuntime()) return isHuaweiSessionUsable(context);
         ArCoreApk.Availability availability = getArCoreAvailability(context);
-        if (availability == ArCoreApk.Availability.SUPPORTED_INSTALLED) {
-            // Do not expose scanning merely from the catalogue result. A real,
-            // closable Session proves that this runtime can actually start.
-            return isARCoreSessionUsable(context);
-        }
-        if (availability == ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD) {
-            return true;
-        }
-        if (availability == ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED) {
-            return true;
-        }
-        // Some OEM/OS combinations can lag behind ARCore's asynchronous
-        // availability catalogue. This is deliberately not a device override:
-        // scanning is enabled only if the public Session constructor succeeds.
-        if (isARCoreSessionUsable(context)) return true;
+        if (availability == ArCoreApk.Availability.SUPPORTED_INSTALLED
+                || availability == ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD
+                || availability == ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED) return true;
         return isHuaweiSessionUsable(context);
     }
 
-    /** A scan entry point must use this stricter runtime check. */
+    /**
+     * Safe scan-entry check. Never construct a Java ARCore Session here:
+     * unsupported Android 16 vendor builds can crash natively inside its
+     * constructor, which no Java exception handler can catch.
+     */
     public static boolean isScanningSessionUsable(Context context) {
         if (context == null) return false;
-        return isARCoreSessionUsable(context) || isHuaweiSessionUsable(context);
+        return isARCoreReady(context) || isHuaweiSessionUsable(context);
+    }
+
+    public static boolean isARCoreReady(Context context) {
+        if (hasKnownFatalArCoreRuntime()) return false;
+        return getArCoreAvailability(context) == ArCoreApk.Availability.SUPPORTED_INSTALLED;
+    }
+
+    /** Device/OS combination confirmed by a native tombstone to null-call in ARCore. */
+    public static boolean hasKnownFatalArCoreRuntime() {
+        if (Build.VERSION.SDK_INT < 36) return false;
+        String device = String.valueOf(Build.DEVICE);
+        String product = String.valueOf(Build.PRODUCT);
+        String fingerprint = String.valueOf(Build.FINGERPRINT);
+        return "aurora".equalsIgnoreCase(device)
+                || "aurora".equalsIgnoreCase(product)
+                || fingerprint.toLowerCase().contains("xiaomi/aurora/");
     }
 
     /** Whether ARCore can be installed/updated for this device catalogue entry. */
@@ -108,11 +114,12 @@ public class Compatibility {
     }
 
     public static boolean isARCoreSupportedAndUpToDate(Activity activity) {
+        if (hasKnownFatalArCoreRuntime()) return false;
         // Make sure ARCore is installed and supported on this device.
         ArCoreApk.Availability availability = getArCoreAvailability(activity);
         switch (availability) {
             case SUPPORTED_INSTALLED:
-                return isARCoreSessionUsable(activity);
+                return true;
             case SUPPORTED_APK_TOO_OLD:
             case SUPPORTED_NOT_INSTALLED:
                 try {
@@ -123,7 +130,7 @@ public class Compatibility {
                         case INSTALL_REQUESTED:
                             return false;
                         case INSTALLED:
-                            return isARCoreSessionUsable(activity);
+                            return true;
                     }
                 } catch (Throwable e) {
                     return false;
@@ -133,32 +140,13 @@ public class Compatibility {
             case UNKNOWN_CHECKING:
             case UNKNOWN_TIMED_OUT:
             case UNSUPPORTED_DEVICE_NOT_CAPABLE:
-                // Runtime proof is stronger than a stale/unknown catalogue
-                // response, while a failed Session remains a hard stop.
-                return isARCoreSessionUsable(activity);
+                return false;
             default:
                 return false;
         }
     }
 
-    /**
-     * Safe runtime probe using only the public ARCore API. The temporary
-     * Session never resumes the camera and is closed on every path.
-     */
-    public static boolean isARCoreSessionUsable(Context context) {
-        if (context == null) return false;
-        Session session = null;
-        try {
-            session = new Session(context);
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        } finally {
-            closeSession(session);
-        }
-    }
-
-    private static ArCoreApk.Availability getArCoreAvailability(Context context) {
+    public static ArCoreApk.Availability getArCoreAvailability(Context context) {
         if (context == null) return ArCoreApk.Availability.UNKNOWN_ERROR;
         try {
             ArCoreApk.Availability availability =
@@ -186,47 +174,17 @@ public class Compatibility {
     }
 
     public static boolean isGoogleDepthSupported(Activity activity) {
-        Session session = null;
-        try {
-            session = new Session(activity);
-            // GOOGLE_SFM configures AUTOMATIC depth in the native backend.
-            return session.isDepthModeSupported(Config.DepthMode.AUTOMATIC);
-        } catch (Throwable e) {
-            e.printStackTrace();
-        } finally {
-            closeSession(session);
-        }
+        // Depth is negotiated by the native scanner only after a certified
+        // runtime has started. Probing it with a Java Session can SIGSEGV.
         return false;
     }
 
     /** Raw depth may be software-generated; it is not proof of ToF/LiDAR. */
     public static boolean isGoogleRawDepthSupported(Activity activity) {
-        Session session = null;
-        try {
-            session = new Session(activity);
-            return session.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY);
-        } catch (Throwable e) {
-            e.printStackTrace();
-        } finally {
-            closeSession(session);
-        }
         return false;
     }
 
     public static boolean isGoogleHardwareDepthSupported(Activity activity) {
-        Session session = null;
-        try {
-            session = new Session(activity);
-            for (CameraConfig config : session.getSupportedCameraConfigs()) {
-                if (config.getDepthSensorUsage() == CameraConfig.DepthSensorUsage.REQUIRE_AND_USE) {
-                    return true;
-                }
-            }
-        } catch (Throwable e) {
-            e.printStackTrace();
-        } finally {
-            closeSession(session);
-        }
         return false;
     }
 
@@ -234,16 +192,6 @@ public class Compatibility {
     @Deprecated
     public static boolean isGoogleToFSupported(Activity activity) {
         return isGoogleHardwareDepthSupported(activity);
-    }
-
-    private static void closeSession(Session session) {
-        if (session == null) {
-            return;
-        }
-        try {
-            session.close();
-        } catch (Throwable ignored) {
-        }
     }
 
     public static boolean isHuaweiHardwareDepthSupported(Activity activity) {

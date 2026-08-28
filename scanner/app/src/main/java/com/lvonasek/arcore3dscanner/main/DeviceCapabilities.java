@@ -21,9 +21,6 @@ import android.util.Size;
 import androidx.core.content.FileProvider;
 
 import com.google.ar.core.ArCoreApk;
-import com.google.ar.core.CameraConfig;
-import com.google.ar.core.Config;
-import com.google.ar.core.Session;
 import com.lvonasek.arcore3dscanner.R;
 import com.lvonasek.utils.Compatibility;
 
@@ -118,7 +115,7 @@ public final class DeviceCapabilities implements SensorEventListener {
     camera2DepthOutput = probeBackCameraDepthOutput(app);
   }
 
-  /** Call before the native ARCore session is created. The Session is always closed. */
+  /** Catalogue-only ARCore probe; deliberately never constructs a Session. */
   public static ArCoreInfo probeArCore(Context context) {
     if (context == null) {
       ArCoreInfo result = new ArCoreInfo();
@@ -140,7 +137,6 @@ public final class DeviceCapabilities implements SensorEventListener {
 
   private static ArCoreInfo probeArCoreUncached(Context context) {
     ArCoreInfo result = new ArCoreInfo();
-    Session session = null;
     try {
       ArCoreApk.Availability availability =
           ArCoreApk.getInstance().checkAvailability(context.getApplicationContext());
@@ -166,36 +162,14 @@ public final class DeviceCapabilities implements SensorEventListener {
           result.supported = true;
           return result;
         default:
-          // Do not fake support for an uncertified device. A successful public
-          // Session construction is the only runtime fallback accepted here.
+          // Never bypass ARCore certification with a Java Session constructor.
+          // On some Android 16 OEM builds that constructor performs a native
+          // null call and kills the process before Java can catch anything.
           break;
-      }
-
-      session = new Session(context);
-      result.runtimeSessionCreated = true;
-      result.supported = true;
-      result.installed = true;
-      result.automaticDepth =
-          session.isDepthModeSupported(Config.DepthMode.AUTOMATIC);
-      result.rawDepth =
-          session.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY);
-      for (CameraConfig cameraConfig : session.getSupportedCameraConfigs()) {
-        if (cameraConfig.getDepthSensorUsage()
-            == CameraConfig.DepthSensorUsage.REQUIRE_AND_USE) {
-          result.hardwareDepthCameraConfig = true;
-          break;
-        }
       }
     } catch (Throwable error) {
       result.error = error.getClass().getSimpleName() + ": "
           + String.valueOf(error.getMessage());
-    } finally {
-      if (session != null) {
-        try {
-          session.close();
-        } catch (Throwable ignored) {
-        }
-      }
     }
     return result;
   }

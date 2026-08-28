@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools"
-          android:versionCode="300002"
-          android:versionName="3.0.2-layout-hotfix"
+          android:versionCode="300003"
+          android:versionName="3.0.3-arcore-guard"
          package="com.lvonasek.arcore3dscanner">
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -80,6 +80,7 @@
         <activity android:configChanges="orientation|screenSize" android:launchMode="singleTop" android:name="com.lvonasek.arcore3dscanner.ui.Settings"/>
         <activity android:configChanges="orientation|screenSize" android:launchMode="singleTop" android:name="com.lvonasek.arcore3dscanner.sketchfab.Uploader"/>
         <activity android:configChanges="orientation|screenSize" android:launchMode="singleTop" android:name="com.lvonasek.arcore3dscanner.ui.FileManager"/>
+        <activity android:configChanges="orientation|screenSize" android:launchMode="singleTop" android:name="com.lvonasek.arcore3dscanner.ui.PhotoDatasetActivity"/>
         <activity android:configChanges="orientation|screenSize" android:launchMode="singleTop" android:name="com.lvonasek.arcore3dscanner.ui.Uploader"/>
         <service
             android:name="com.lvonasek.arcore3dscanner.ui.Service"
