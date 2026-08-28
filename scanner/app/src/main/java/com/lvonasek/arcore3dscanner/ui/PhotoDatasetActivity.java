@@ -875,7 +875,9 @@ public final class PhotoDatasetActivity extends AbstractActivity
 
   private static JSONArray jsonArray(float[] values) {
     JSONArray array = new JSONArray();
-    if (values != null) for (float value : values) array.put(value);
+    // Use the Object overload: Android's primitive-double overload declares
+    // JSONException even though these sensor/calibration values are finite.
+    if (values != null) for (float value : values) array.put(Float.valueOf(value));
     return array;
   }
 
