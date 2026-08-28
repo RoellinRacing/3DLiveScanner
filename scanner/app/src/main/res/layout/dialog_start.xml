@@ -1,79 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/background_dialog"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <View
+        android:layout_width="48dp"
+        android:layout_height="5dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/scanner_divider" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:padding="10dp"
         android:text="@string/app_name"
-        android:textSize="20sp"
-        android:textStyle="bold"/>
+        android:textColor="@color/scanner_text"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:layout_marginBottom="18dp"
+        android:text="PRECISION CAPTURE"
+        android:textColor="@color/scanner_accent"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.14" />
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@android:color/white"/>
+        android:background="@color/scanner_border" />
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:fadeScrollbars="false">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:padding="10dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/info"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingBottom="10dp"
-                android:text="@string/info"
-                android:textSize="15sp"/>
-        </LinearLayout>
+            android:lineSpacingExtra="4dp"
+            android:text="@string/info"
+            android:textColor="@color/scanner_text_secondary"
+            android:textColorLink="@color/scanner_accent"
+            android:textSize="15sp" />
     </ScrollView>
 
     <TextView
         android:id="@+id/lowend_device"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:paddingBottom="20dp"
-        android:paddingLeft="10dp"
-        android:paddingRight="10dp"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/scanner_glass_panel"
+        android:padding="14dp"
         android:text="@string/lowend_device"
-        android:textAllCaps="true"
-        android:textColor="@android:color/holo_red_light"
-        android:textSize="15sp"
+        android:textAllCaps="false"
+        android:textColor="@color/scanner_warning"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:visibility="gone" />
 
     <Button
         android:id="@+id/button_ok"
+        style="@style/ScannerPrimaryButton"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_marginTop="10dp"
-        android:layout_margin="5dp"
+        android:layout_marginTop="20dp"
         android:text="@android:string/ok"
-        android:background="@drawable/background_button_selected"
-        android:visibility="gone"/>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/white"/>
+        android:visibility="gone" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:padding="10dp"
-        android:text="Lubos Vonasek Programmierung 2022"
-        android:textSize="12sp"/>
-
+        android:layout_marginTop="18dp"
+        android:text="3D Live Scanner · 2026"
+        android:textColor="@color/scanner_text_secondary"
+        android:textSize="11sp" />
 </LinearLayout>

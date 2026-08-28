@@ -28,6 +28,7 @@ import android.widget.Toast;
 
 import com.google.ar.core.ArCoreApk;
 import com.lvonasek.arcore3dscanner.R;
+import com.lvonasek.arcore3dscanner.main.DeviceCapabilities;
 import com.lvonasek.arcore3dscanner.main.Exporter;
 import com.lvonasek.arcore3dscanner.main.Main;
 import com.lvonasek.utils.Compatibility;
@@ -294,9 +295,11 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
     }
 
     try {
-      boolean arcore = Compatibility.isPlayStoreSupported(this);
       boolean arengine = Compatibility.shouldUseHuawei(this);
-      if ((!arengine || arcore) && Compatibility.isARSupported(this))
+      boolean arcoreReady = Compatibility.isARCoreSessionUsable(this);
+      // A successfully constructed runtime Session needs no catalogue/install
+      // round-trip. Huawei devices using AR Engine must not be sent to ARCore.
+      if (!arengine && !arcoreReady && Compatibility.isARSupported(this))
         if (ArCoreApk.getInstance().requestInstall(this, true) != ArCoreApk.InstallStatus.INSTALLED)
           return;
     } catch (Exception e) {
@@ -390,6 +393,11 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
   private void startScanning()
   {
+    if (!Compatibility.isScanningSessionUsable(this)) {
+      showScanningUnavailable();
+      return;
+    }
+
     AlertDialog.Builder builder = new AlertDialog.Builder(this);
     builder.setView(R.layout.dialog_scan);
     Dialog dialog = builder.create();
@@ -398,15 +406,13 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
     ArrayList<Drawable> icons = new ArrayList<>();
     ArrayList<String> values = new ArrayList<>();
-    if (Compatibility.isARSupported(this)) {
-      icons.add(getDrawable(R.drawable.ic_type_face));
-      values.add(getString(R.string.mode_face));
-      icons.add(getDrawable(R.drawable.ic_type_scan));
-      values.add(getString(R.string.mode_realtime));
-      if (isProVersion(this)) {
-        icons.add(getDrawable(R.drawable.ic_type_dataset));
-        values.add(getString(R.string.mode_dataset));
-      }
+    icons.add(getDrawable(R.drawable.ic_type_face));
+    values.add(getString(R.string.mode_face));
+    icons.add(getDrawable(R.drawable.ic_type_scan));
+    values.add(getString(R.string.mode_realtime));
+    if (isProVersion(this)) {
+      icons.add(getDrawable(R.drawable.ic_type_dataset));
+      values.add(getString(R.string.mode_dataset));
     }
 
     SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(FileManager.this);
@@ -434,6 +440,45 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
       startActivity(new Intent(FileManager.this, Main.class));
     });
+  }
+
+  private void showScanningUnavailable() {
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.scan_runtime_unavailable_title)
+        .setMessage(R.string.scan_runtime_unavailable_message)
+        .setPositiveButton(R.string.diagnostics_create_share,
+            (dialog, which) -> createAndShareDiagnostics())
+        .setNegativeButton(android.R.string.cancel, null)
+        .show();
+  }
+
+  private void createAndShareDiagnostics() {
+    new Thread(() -> {
+      try {
+        DeviceCapabilities.ArCoreInfo arCore =
+            DeviceCapabilities.probeArCore(FileManager.this);
+        DeviceCapabilities capabilities =
+            new DeviceCapabilities(FileManager.this, arCore);
+        File report = capabilities.exportReport();
+        runOnUiThread(() -> {
+          if (isFinishing() || isDestroyed()) return;
+          try {
+            capabilities.shareReport(FileManager.this, report);
+          } catch (Throwable error) {
+            showDiagnosticsError(error);
+          }
+        });
+      } catch (Throwable error) {
+        runOnUiThread(() -> {
+          if (!isFinishing() && !isDestroyed()) showDiagnosticsError(error);
+        });
+      }
+    }, "device-diagnostics").start();
+  }
+
+  private void showDiagnosticsError(Throwable error) {
+    Log.e(TAG, "Unable to create or share device diagnostics", error);
+    Toast.makeText(this, R.string.diagnostics_failed, Toast.LENGTH_LONG).show();
   }
 
   private void finishScanning()

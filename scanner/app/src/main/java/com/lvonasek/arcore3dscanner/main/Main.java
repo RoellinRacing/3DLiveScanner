@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -29,6 +30,7 @@ import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
@@ -86,6 +88,14 @@ public class Main extends AbstractActivity implements View.OnClickListener,
   private Editor mEditor;
   private Indicators mIndicators;
   private CameraControl mCameraControl;
+  private DeviceCapabilities mCapabilities;
+  private DeviceCapabilities.ArCoreInfo mArCoreInfo;
+  private View mMeasureToolbar;
+  private ImageButton mMeasureToggle;
+  private boolean mMeasurementAvailable;
+  private EngineeringExport.Artifact mPendingExport;
+
+  private static final int REQUEST_SAVE_EXPORT = 0x3D15;
 
   // AR Service connection.
   boolean mInitialised = false;
@@ -105,29 +115,26 @@ public class Main extends AbstractActivity implements View.OnClickListener,
   float mCameraRecordYaw = 0;
 
   int getARMode() {
-    int mode = getBackend(this) * 3; //0 = GOOGLE_SFM, 3 = HUAWEI_SFM
+    int backend = getBackend(this);
+    int mode = backend * 3; // 0 = GOOGLE_SFM, 3 = HUAWEI_SFM
     if (isFaceModeOn(this)) {
       mCameraControl.updateView(CameraControl.ViewMode.FACE);
-      if (Compatibility.shouldUseHuawei(this))
-        mode = 5; //HUAWEI_FACE
-      else
-        mode = 2; //GOOGLE_FACE
+      mode = backend == 1 ? 5 : 2;
+    } else {
+      boolean hardwareDepth;
+      if (backend == 0 && mArCoreInfo != null) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean enabled = preferences.getBoolean(
+            getString(R.string.pref_depth), mArCoreInfo.hardwareDepthCameraConfig);
+        hardwareDepth = enabled && mArCoreInfo.hardwareDepthCameraConfig;
+      } else {
+        hardwareDepth = isTofOn(this);
+      }
+      if (hardwareDepth) mode++; // 1/4 = explicitly exposed hardware depth
     }
-    else if (isTofOn(this))
-      mode++; //1 = GOOGLE_TOF, 4 = HUAWEI_TOF
 
-    //HUAWEI_SFM
-    if (mode == 3) {
-      if (Compatibility.isARCoreSupportedAndUpToDate(this)) {
-        mode = 0; //GOOGLE_SFM
-      }
-    }
-    //GOOGLE_SFM
-    if (mode == 0) {
-      if (!Compatibility.isGoogleDepthSupported(this)) {
-        mRes *= 1.5f;
-      }
-    }
+    if (mode == 3 && Compatibility.isARCoreSupportedAndUpToDate(this)) mode = 0;
+    if (mCapabilities != null) mCapabilities.setRuntimeArMode(mode);
     return mode;
   }
 
@@ -139,10 +146,11 @@ public class Main extends AbstractActivity implements View.OnClickListener,
 
     boolean texturize = (mToPostprocess != null) || (Math.abs(Service.getRunning(this)) == Service.SERVICE_SAVE);
     double res = mRes, dmin = 0.01f, dmax = 7;
-    mCameraControl.setOffset(0);
-    if (mRes > 0.0099f) {
-      mCameraControl.setOffset(mRes * 100);
+    if (mode == 0 && (mArCoreInfo == null ||
+        (!mArCoreInfo.automaticDepth && !mArCoreInfo.rawDepth))) {
+      res *= 1.5;
     }
+    mCameraControl.setOffset(res > 0.0099 ? (float) (res * 100) : 0);
     //change resolution for HUAWEI_SFM
     if (mode == 3) { res *= 2.0f; }
 
@@ -153,11 +161,11 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     boolean clear = pref.getBoolean(getString(R.string.pref_clear), true);
     boolean disto = false;
     boolean poses = pref.getBoolean(getString(R.string.pref_slow), false);
-    boolean offst = pref.getBoolean(getString(R.string.pref_offset), true) && !poses;
+    boolean offst = pref.getBoolean(getString(R.string.pref_offset), false) && !poses;
     boolean holes = mode == 3; // HUAWEI_SFM
     boolean flash = pref.getBoolean(getString(R.string.pref_flash), false) && !isFaceModeOn(this) && !texturize;
     boolean poiss = pref.getBoolean(getString(R.string.pref_poisson), false);
-    dmax = Integer.parseInt(pref.getString(getString(R.string.pref_limit), "4"));
+    dmax = Double.parseDouble(pref.getString(getString(R.string.pref_limit), "4"));
 
     if (pref.getBoolean(getString(R.string.pref_gps), false)) {
       mGPS = new GPS();
@@ -179,7 +187,7 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     actManager.getMemoryInfo(memInfo);
     int MB = (int) (memInfo.totalMem / 1048576L);
     int texture_max = Math.min(Math.max(1, MB / 512), 8);
-    switch (pref.getString(getString(R.string.pref_textures), "4")) {
+    switch (pref.getString(getString(R.string.pref_textures), "-1")) {
       case "1":
         texture_max = 1;
         break;
@@ -187,7 +195,7 @@ public class Main extends AbstractActivity implements View.OnClickListener,
         texture_max = 4;
         break;
     }
-    int texture_res = 2048;
+    int texture_res = MB >= 8000 ? 4096 : 2048;
 
     String t = mToPostprocess != null ? mToPostprocess : getTempPath().getAbsolutePath();
     JNI.motionTrackingMessages = !isFaceModeOn(this);
@@ -254,6 +262,24 @@ public class Main extends AbstractActivity implements View.OnClickListener,
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
+
+    // Probe once before the native session owns the camera. The result is reused
+    // by mode selection, the scan coach and the diagnostics export.
+    mArCoreInfo = DeviceCapabilities.probeArCore(this);
+    mCapabilities = new DeviceCapabilities(this, mArCoreInfo);
+    findViewById(R.id.layout_info).setOnLongClickListener(view -> {
+      new Thread(() -> {
+        try {
+          File report = mCapabilities.exportReport();
+          runOnUiThread(() -> mCapabilities.shareReport(this, report));
+        } catch (Exception error) {
+          Log.e(TAG, "Unable to export device diagnostics", error);
+          runOnUiThread(() -> Toast.makeText(
+              this, error.getMessage(), Toast.LENGTH_LONG).show());
+        }
+      }, "diagnostics-export").start();
+      return true;
+    });
 
     // Setup UI elements and listeners.
     mHandMotionView = findViewById(R.id.ar_hand_layout);
@@ -344,6 +370,22 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     mEditor = findViewById(R.id.editor);
     mProgress = findViewById(R.id.progressBar);
     mCameraControl = new CameraControl(this, mDistance, mEditor);
+    mMeasureToolbar = findViewById(R.id.measure_toolbar);
+    mMeasureToggle = findViewById(R.id.measure_toggle);
+    mDistance.setEnabled(false);
+    mMeasureToggle.setOnClickListener(view -> {
+      boolean enabled = !mDistance.isEnabled();
+      mDistance.setEnabled(enabled);
+      mMeasureToggle.setSelected(enabled);
+      if (enabled) {
+        mMeasureToggle.setColorFilter(getColor(R.color.scanner_accent));
+      } else {
+        mMeasureToggle.clearColorFilter();
+      }
+    });
+    findViewById(R.id.measure_undo).setOnClickListener(view -> mDistance.deleteLast());
+    findViewById(R.id.measure_clear).setOnClickListener(view -> mDistance.clearAll());
+    findViewById(R.id.measure_scale).setOnClickListener(view -> mDistance.calibrateLast());
 
     //open file
     mToLoad = null;
@@ -511,7 +553,8 @@ public class Main extends AbstractActivity implements View.OnClickListener,
       setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
     } else {
       CommonDialogs.setImmersive(getWindow());
-      mIndicators = new Indicators(this);
+      if (mIndicators != null) mIndicators.disable();
+      mIndicators = new Indicators(this, mCapabilities);
     }
   }
 
@@ -546,6 +589,11 @@ public class Main extends AbstractActivity implements View.OnClickListener,
 
   @Override
   protected void onPause() {
+    if (mIndicators != null) {
+      mIndicators.disable();
+      mIndicators = null;
+    }
+    if (mCapabilities != null) mCapabilities.stop();
     super.onPause();
 
     //stop GPS
@@ -594,6 +642,13 @@ public class Main extends AbstractActivity implements View.OnClickListener,
       mEditor.touchEvent(event);
       if (mEditor.movingLocked())
         return true;
+    }
+
+    if (mCameraControl.isViewMode() && mDistance.isEnabled()) {
+      mLongClick = false;
+      mDistance.onViewerTouch(event);
+      mCameraControl.updateMotion(event);
+      return true;
     }
 
     //double click to zoom
@@ -660,10 +715,12 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     boolean floorplan = new File(new File(filename).getParentFile(), "floorplan.png").exists();
     boolean face = new File(new File(filename).getParentFile(), "model_face.jpg").exists();
     boolean pointcloud = filename.endsWith(Exporter.EXT_PLY);
+    mMeasurementAvailable = !face && !floorplan && !pointcloud;
     if (mIndicators != null) {
       mIndicators.disable();
     }
     mLayoutRec.setVisibility(View.GONE);
+    setMeasureToolbarVisible(true);
     if (face || floorplan)
       mLayoutView.setVisibility(View.GONE);
 
@@ -675,7 +732,10 @@ public class Main extends AbstractActivity implements View.OnClickListener,
       lp.width = Math.min(display.getWidth(), display.getHeight()) * 2 / 3;
       mLayoutView.setLayoutParams(lp);
 
-      mDistance.reset();
+      mDistance.setEnabled(false);
+      mMeasureToggle.setSelected(false);
+      mMeasureToggle.clearColorFilter();
+      setMeasureToolbarVisible(false);
       mCameraControl.getVRButton().setVisibility(View.GONE);
       mThumbnailButton.setVisibility(View.GONE);
       mEditorButton.setVisibility(View.GONE);
@@ -687,7 +747,9 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     if (!face && !floorplan && !pointcloud && Compatibility.isPlayStoreSupported(this))
       mCameraControl.getVRButton().setVisibility(View.VISIBLE);
     mCameraControl.getVRButton().setOnClickListener(view -> {
-      mDistance.reset();
+      mDistance.setEnabled(false);
+      mMeasureToggle.setSelected(false);
+      mMeasureToggle.clearColorFilter();
       mIgnoreSaving = true;
       mRestoreViewOnResume = true;
       mCameraControl.enterVR(filename);
@@ -696,58 +758,52 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     if (!pointcloud) {
       mThumbnailButton.setVisibility(View.VISIBLE);
       mThumbnailButton.setOnClickListener(view -> {
-        mDistance.reset();
-        CharSequence[] items;
-        if (isProVersion(this)) {
-          items = new CharSequence[]{
-                  getString(R.string.sketchfab_dialog_title),
-                  getString(R.string.screenshot),
-                  getString(R.string.videoshot)
-          };
-        } else {
-          items = new CharSequence[]{
-                  getString(R.string.sketchfab_dialog_title),
-                  getString(R.string.screenshot)
-          };
-        }
+        CharSequence[] items = new CharSequence[]{
+            getString(R.string.export_stl_mm),
+            getString(R.string.export_3mf_mm),
+            getString(R.string.export_ply_mesh),
+            getString(R.string.export_obj_textured),
+            getString(R.string.screenshot),
+            getString(R.string.videoshot),
+            getString(R.string.sketchfab_dialog_title)
+        };
 
         AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-        dialog.setTitle(R.string.share_via);
+        dialog.setTitle(R.string.export_title);
         dialog.setItems(items, (dialog1, which) -> {
           switch (which) {
             case 0:
-              mLayoutView.setVisibility(View.GONE);
-              mProgress.setVisibility(View.VISIBLE);
-              mEditorButton.setVisibility(View.GONE);
-              mThumbnailButton.setVisibility(View.GONE);
-              mIgnoreSaving = true;
-              new Thread(() -> {
-                File folder = new File(mOpenedFile).getParentFile();
-                if ((folder == null) || (folder.getAbsolutePath().length() <= getPath(false).length())) {
-                  folder = new File(getPath(false));
-                }
-                final String zip = Exporter.compressModel(folder);
-                runOnUiThread(() -> {
-                  Intent intent = new Intent(Main.this, OAuth.class);
-                  intent.putExtra(AbstractActivity.FILE_KEY, zip);
-                  startActivity(intent);
-                  finish();
-                });
-              }).start();
+              prepareEngineeringExport(EngineeringExport.Format.STL);
               break;
             case 1:
-              captureScreenshot();
+              prepareEngineeringExport(EngineeringExport.Format.THREE_MF);
               break;
             case 2:
+              prepareEngineeringExport(EngineeringExport.Format.PLY);
+              break;
+            case 3:
+              prepareTexturedObjExport();
+              break;
+            case 4:
+              captureScreenshot();
+              break;
+            case 5:
               mCameraRecordYaw = 0;
               mLayoutView.setVisibility(View.GONE);
+              setMeasureToolbarVisible(false);
               mProgress.setVisibility(View.VISIBLE);
               mEditorButton.setVisibility(View.GONE);
               mThumbnailButton.setVisibility(View.GONE);
               mRecording = true;
+              File videoDirectory = new File(getCacheDir(), "exports");
+              if (!videoDirectory.exists()) videoDirectory.mkdirs();
+              Recorder.setCustomRoot(videoDirectory);
               Recorder.setVideoDownscale(1280);
               Recorder.setVideoFPS(30);
               Recorder.startCapturingVideo(Main.this, false);
+              break;
+            case 6:
+              uploadToSketchfab();
               break;
           }
         });
@@ -755,6 +811,145 @@ public class Main extends AbstractActivity implements View.OnClickListener,
       });
     }
     mCameraControl.setViewerMode(face, floorplan);
+  }
+
+  private String openedModelName() {
+    if (mOpenedFile == null) return "scan";
+    String name = new File(mOpenedFile).getName();
+    int extension = name.lastIndexOf('.');
+    return extension > 0 ? name.substring(0, extension) : name;
+  }
+
+  private void prepareEngineeringExport(EngineeringExport.Format format) {
+    setExportBusy(true);
+    new Thread(() -> {
+      try {
+        EngineeringExport.Artifact artifact = EngineeringExport.exportCurrentModel(
+            this, openedModelName(), format);
+        runOnUiThread(() -> showExportDestination(artifact));
+      } catch (Exception error) {
+        Log.e(TAG, "Engineering export failed", error);
+        runOnUiThread(() -> showExportError(error));
+      }
+    }, "engineering-export").start();
+  }
+
+  private void prepareTexturedObjExport() {
+    setExportBusy(true);
+    new Thread(() -> {
+      try {
+        EngineeringExport.Artifact artifact = EngineeringExport.exportCurrentObj(
+            this, openedModelName(), mOpenedFile == null ? null : new File(mOpenedFile));
+        runOnUiThread(() -> showExportDestination(artifact));
+      } catch (Exception error) {
+        Log.e(TAG, "Textured OBJ package failed", error);
+        runOnUiThread(() -> showExportError(error));
+      }
+    }, "textured-obj-export").start();
+  }
+
+  private void setExportBusy(boolean busy) {
+    runOnUiThread(() -> {
+      mProgress.setVisibility(busy ? View.VISIBLE : View.GONE);
+      mThumbnailButton.setVisibility(busy ? View.GONE : View.VISIBLE);
+      mEditorButton.setVisibility(!busy && mMeasurementAvailable ? View.VISIBLE : View.GONE);
+      setMeasureToolbarVisible(!busy);
+    });
+  }
+
+  private void setMeasureToolbarVisible(boolean visible) {
+    mMeasureToolbar.setVisibility(
+        visible && mMeasurementAvailable ? View.VISIBLE : View.GONE);
+  }
+
+  private void showExportError(Exception error) {
+    setExportBusy(false);
+    String message = error.getMessage() == null
+        ? getString(R.string.export_failed)
+        : error.getMessage();
+    Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+  }
+
+  private void showExportDestination(EngineeringExport.Artifact artifact) {
+    setExportBusy(false);
+    CharSequence[] actions = new CharSequence[]{
+        getString(R.string.export_save_drive),
+        getString(R.string.export_share_send)
+    };
+    new AlertDialog.Builder(this)
+        .setTitle(artifact.displayName)
+        .setItems(actions, (dialog, which) -> {
+          if (which == 0) {
+            saveArtifact(artifact);
+          } else {
+            mIgnoreSaving = true;
+            startActivity(EngineeringExport.createShareIntent(this, artifact));
+          }
+        })
+        .setNegativeButton(android.R.string.cancel, null)
+        .show();
+  }
+
+  private void saveArtifact(EngineeringExport.Artifact artifact) {
+    mPendingExport = artifact;
+    mIgnoreSaving = true;
+    startActivityForResult(
+        EngineeringExport.createDocumentIntent(artifact), REQUEST_SAVE_EXPORT);
+  }
+
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    if (requestCode != REQUEST_SAVE_EXPORT) return;
+    EngineeringExport.Artifact artifact = mPendingExport;
+    mPendingExport = null;
+    if (resultCode != RESULT_OK || data == null || data.getData() == null ||
+        artifact == null) {
+      return;
+    }
+
+    Uri destination = data.getData();
+    setExportBusy(true);
+    new Thread(() -> {
+      try {
+        EngineeringExport.writeToDocument(this, artifact, destination);
+        runOnUiThread(() -> {
+          setExportBusy(false);
+          Toast.makeText(this, R.string.export_saved, Toast.LENGTH_LONG).show();
+        });
+      } catch (Exception error) {
+        Log.e(TAG, "Document export failed", error);
+        runOnUiThread(() -> showExportError(error));
+      }
+    }, "document-export").start();
+  }
+
+  private void uploadToSketchfab() {
+    mLayoutView.setVisibility(View.GONE);
+    setMeasureToolbarVisible(false);
+    mProgress.setVisibility(View.VISIBLE);
+    mEditorButton.setVisibility(View.GONE);
+    mThumbnailButton.setVisibility(View.GONE);
+    mIgnoreSaving = true;
+    new Thread(() -> {
+      try {
+        EngineeringExport.Artifact artifact = EngineeringExport.exportCurrentObj(
+            this, openedModelName(), mOpenedFile == null ? null : new File(mOpenedFile));
+        runOnUiThread(() -> {
+          Intent intent = new Intent(Main.this, OAuth.class);
+          intent.putExtra(AbstractActivity.FILE_KEY, artifact.file.getAbsolutePath());
+          startActivity(intent);
+          finish();
+        });
+      } catch (Exception error) {
+        runOnUiThread(() -> {
+          mIgnoreSaving = false;
+          mLayoutView.setVisibility(mMeasurementAvailable ? View.VISIBLE : View.GONE);
+          setMeasureToolbarVisible(true);
+          showExportError(error);
+        });
+      }
+    }, "sketchfab-export").start();
   }
 
   private void captureScreenshot() {
@@ -796,9 +991,10 @@ public class Main extends AbstractActivity implements View.OnClickListener,
         new Thread(() -> {
           Recorder.stopCapturingVideo(Main.this, false);
           runOnUiThread(() -> {
-            mLayoutView.setVisibility(View.VISIBLE);
+            mLayoutView.setVisibility(mMeasurementAvailable ? View.VISIBLE : View.GONE);
+            setMeasureToolbarVisible(true);
             mProgress.setVisibility(View.GONE);
-            mEditorButton.setVisibility(View.VISIBLE);
+            mEditorButton.setVisibility(mMeasurementAvailable ? View.VISIBLE : View.GONE);
             mThumbnailButton.setVisibility(View.VISIBLE);
             mIgnoreSaving = true;
 
@@ -834,7 +1030,7 @@ public class Main extends AbstractActivity implements View.OnClickListener,
   public void onSurfaceChanged(GL10 gl, int width, int height) {
     SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
     boolean poses = pref.getBoolean(getString(R.string.pref_slow), false);
-    boolean fullhd = pref.getBoolean(getString(R.string.pref_fullhd), false) || isFaceModeOn(this) || poses;
+    boolean fullhd = pref.getBoolean(getString(R.string.pref_fullhd), true) || isFaceModeOn(this) || poses;
     mShowGrid = pref.getBoolean(getString(R.string.pref_grid), true);
     JNI.onGlSurfaceChanged(width, height, fullhd);
 

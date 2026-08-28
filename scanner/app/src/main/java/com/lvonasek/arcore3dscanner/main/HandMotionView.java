@@ -1,5 +1,6 @@
 package com.lvonasek.arcore3dscanner.main;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
@@ -14,6 +15,7 @@ import com.lvonasek.arcore3dscanner.R;
 
 /** This view contains the hand motion instructions with animation. */
 
+@SuppressLint("AppCompatCustomView")
 public class HandMotionView extends ImageView {
 
   private static final long ANIMATION_SPEED_MS = 2500;

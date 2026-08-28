@@ -49,7 +49,6 @@ public class CameraControl {
     private float mPitch = 0;
     private float mYawM = 0;
     private float mYawR = 0;
-    private float mDiff = 0;
 
     private File mMakeThumbnail = null;
     private boolean mShareThumbnail = false;
@@ -94,7 +93,7 @@ public class CameraControl {
                         mPitch = 1.57f;
                     if (mPitch < -1.57f)
                         mPitch = -1.57f;
-                    mDistance.reset();
+                    mDistance.refreshProjection();
                 }
                 JNI.setView(mYawM + mYawR, mPitch, mMoveX, mMoveY, mMoveZ, mOrbit, !mViewMode);
             }
@@ -106,8 +105,6 @@ public class CameraControl {
                 }
                 if (mViewMode) {
                     GLESSurfaceView gl = mActivity.getGLView();
-                    mDiff += Math.abs(dx) / (float)gl.getWidth() + Math.abs(dy) / (float)gl.getHeight();
-
                     if ((mView == ViewMode.FIRST) || (mView == ViewMode.ORBIT) || (mView == ViewMode.TOPDOWN)) {
                         //move factor
                         float f = getMoveFactor();
@@ -132,7 +129,6 @@ public class CameraControl {
                     return;
                 }
                 if (mView != ViewMode.ORBIT) {
-                    mDiff += Math.abs(mYawR - Math.toRadians(-angle));
                     mYawR = (float) Math.toRadians(-angle);
                     JNI.setView(mYawM + mYawR, mPitch, mMoveX, mMoveY, mMoveZ, mOrbit, !mViewMode);
                 }
@@ -143,7 +139,6 @@ public class CameraControl {
                 if (Recorder.isVideoRecording()) {
                     return;
                 }
-                mDiff += Math.abs(diff);
                 if (mView == ViewMode.FACE) {
                     diff *= 0.25f;
                     mOrbit -= diff;
@@ -310,7 +305,7 @@ public class CameraControl {
     public void setViewerMode(boolean face, boolean floorplan) {
 
         mFirstViewButton.setOnClickListener(view -> {
-            mDistance.reset();
+            mDistance.refreshProjection();
             if (mEditor.initialized())
                 if (mEditor.movingLocked())
                     return;
@@ -318,7 +313,7 @@ public class CameraControl {
         });
 
         mOrbitViewButton.setOnClickListener(view -> {
-            mDistance.reset();
+            mDistance.refreshProjection();
             if (mEditor.initialized())
                 if (mEditor.movingLocked())
                     return;
@@ -326,7 +321,7 @@ public class CameraControl {
         });
 
         mTopViewButton.setOnClickListener(view -> {
-            mDistance.reset();
+            mDistance.refreshProjection();
             if (mEditor.initialized())
                 if (mEditor.movingLocked())
                     return;
@@ -419,39 +414,8 @@ public class CameraControl {
             e.printStackTrace();
         }
 
-        //distance measuring gesture
-        if (mViewMode) {
-            int x1 = 0, y1 = 0, x2 = 0, y2 = 0, pointerCount = 0;
-            for ( int i = 0; i < event.getPointerCount(); i++ )
-            {
-                pointerCount++;
-                MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
-                event.getPointerCoords(i, pointerCoords);
-                if( pointerCount == 1 )
-                {
-                    x1 = (int) pointerCoords.x;
-                    y1 = (int) pointerCoords.y;
-                }
-                if( pointerCount == 2 )
-                {
-                    x2 = (int) pointerCoords.x;
-                    y2 = (int) pointerCoords.y;
-                }
-                if( (event.getActionMasked() == MotionEvent.ACTION_POINTER_UP)
-                        || (event.getActionMasked() == MotionEvent.ACTION_UP) )
-                {
-                    if( event.getActionIndex() == event.findPointerIndex(event.getPointerId(i)) )
-                    {
-                        pointerCount--;
-                    }
-                }
-            }
-            mDistance.setGesture(pointerCount, x1, y1, x2, y2);
-            if ((mDiff > 0.1f) && (pointerCount == 1)) {
-                mDistance.reset();
-                mDiff = 0;
-            }
-        }
+        if (mViewMode)
+            mDistance.refreshProjection();
     }
 
     public void updateView() {
@@ -460,10 +424,10 @@ public class CameraControl {
 
     public void updateView(ViewMode v) {
         mView = v;
-        mCardboardButton.setBackgroundColor(mActivity.getColor(android.R.color.transparent));
-        mFirstViewButton.setBackgroundColor(mActivity.getColor(android.R.color.transparent));
-        mOrbitViewButton.setBackgroundColor(mActivity.getColor(android.R.color.transparent));
-        mTopViewButton.setBackgroundColor(mActivity.getColor(android.R.color.transparent));
+        mCardboardButton.setSelected(false);
+        mFirstViewButton.setSelected(false);
+        mOrbitViewButton.setSelected(false);
+        mTopViewButton.setSelected(false);
 
         float floor = JNI.getFloorLevel(mMoveX, mMoveY, mMoveZ);
         if (floor < -9999)
@@ -476,22 +440,22 @@ public class CameraControl {
                 mOrbit = -1;
                 mMoveZ = floor + 1.7f; //1.7m as an average human height
                 mPitch = 0;
-                mFirstViewButton.setBackgroundColor(mActivity.getColor(android.R.color.holo_blue_bright));
+                mFirstViewButton.setSelected(true);
                 break;
             case ORBIT:
                 mOrbit = Math.max(5, Math.abs(mMoveZ - floor));
                 mMoveZ = floor + 0.5f; //0.5m as an average object size
-                mOrbitViewButton.setBackgroundColor(mActivity.getColor(android.R.color.holo_blue_bright));
+                mOrbitViewButton.setSelected(true);
                 break;
             case TOPDOWN:
                 mOrbit = -1;
                 mMoveZ = floor + 10.0f;
                 mPitch = (float) Math.toRadians(-90);
-                mTopViewButton.setBackgroundColor(mActivity.getColor(android.R.color.holo_blue_bright));
+                mTopViewButton.setSelected(true);
                 break;
             case VR:
                 mOrbit = -1;
-                mCardboardButton.setBackgroundColor(mActivity.getColor(android.R.color.holo_blue_bright));
+                mCardboardButton.setSelected(true);
                 break;
             case FLOORPLAN:
                 mOrbit = -1;

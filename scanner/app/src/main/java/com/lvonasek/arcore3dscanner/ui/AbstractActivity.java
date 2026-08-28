@@ -1,6 +1,7 @@
 package com.lvonasek.arcore3dscanner.ui;
 
 import android.app.Activity;
+import android.os.Bundle;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -45,6 +46,13 @@ public abstract class AbstractActivity extends Activity {
   private static final ArrayList<File> toDelete = new ArrayList<>();
   private static final AtomicBoolean migrationActive = new AtomicBoolean(false);
   private static final AtomicBoolean restartApp = new AtomicBoolean(false);
+  private static Context appContext;
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    appContext = getApplicationContext();
+  }
 
   public float convertDpToPx(float dp) {
     return dp * ((float) getResources().getDisplayMetrics().densityDpi / DisplayMetrics.DENSITY_DEFAULT);
@@ -125,8 +133,8 @@ public abstract class AbstractActivity extends Activity {
   public static float getResolution(Context context)
   {
     SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
-    String value = pref.getString(context.getString(com.lvonasek.arcore3dscanner.R.string.pref_resolution), "0.04");
-    if (value.compareTo("0") == 0) value = "0.04";
+    String value = pref.getString(context.getString(com.lvonasek.arcore3dscanner.R.string.pref_resolution), "0.008");
+    if (value.compareTo("0") == 0) value = "0.008";
     return Float.parseFloat(value);
   }
 
@@ -296,18 +304,25 @@ public abstract class AbstractActivity extends Activity {
         File f = new File(s);
         if (f.getAbsolutePath().toLowerCase().endsWith(Exporter.EXT_PLY))
           return f;
-        return folder;
       }
+      return folder;
     }
     return null;
   }
 
   public static String getPath(boolean migrate) {
+    if (appContext == null) {
+      throw new IllegalStateException("Scanner storage requested before application context was ready");
+    }
+    File documents = appContext.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+    if (documents == null) {
+      documents = appContext.getFilesDir();
+    }
     String olddir = Environment.getExternalStorageDirectory().getPath() + OLD_MODEL_DIRECTORY;
     String newdir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).getPath() + OLD_MODEL_DIRECTORY;
-    String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).getPath() + NEW_MODEL_DIRECTORY;
+    String dir = new File(documents, "3D Live Scanner").getAbsolutePath();
 
-    if (new File(dir).mkdir())
+    if (new File(dir).mkdirs())
       Log.d(TAG, "Directory " + dir + " created");
     try {
       if (new File(new File(dir), ".nomedia").createNewFile())

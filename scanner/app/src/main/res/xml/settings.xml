@@ -51,13 +51,13 @@
                         android:title="@string/scan_parameters">
 
                         <CheckBoxPreference
-                            android:defaultValue="true"
+                            android:defaultValue="false"
                             android:key="@string/pref_offset"
                             android:summary="@string/offset_summary"
                             android:title="@string/offset" />
 
                         <CheckBoxPreference
-                            android:defaultValue="false"
+                            android:defaultValue="true"
                             android:key="@string/pref_fullhd"
                             android:summary="@string/fullhd_summary"
                             android:title="@string/fullhd" />
@@ -121,7 +121,7 @@
                             android:title="@string/decimation" />
 
                         <ListPreference
-                            android:defaultValue="4"
+                            android:defaultValue="-1"
                             android:entries="@array/textures_names"
                             android:entryValues="@array/textures_values"
                             android:key="pref_textures"
@@ -159,7 +159,7 @@
                 </PreferenceScreen>
 
                 <ListPreference
-                    android:defaultValue="0.04"
+                    android:defaultValue="0.008"
                     android:entries="@array/profile_resolution_names"
                     android:entryValues="@array/profile_resolution_values"
                     android:key="pref_resolution"

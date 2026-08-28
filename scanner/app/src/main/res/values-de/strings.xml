@@ -30,6 +30,11 @@
     <string name="resolve_manually">Lösung des Problems</string>
     <string name="show_normals">Normalen anzeigen</string>
     <string name="photo_mode">Foto-Modus</string>
+    <string name="scan_runtime_unavailable_title">3D-Scan nicht verfügbar</string>
+    <string name="scan_runtime_unavailable_message">Weder ARCore noch Huawei AR Engine konnte auf diesem Gerät eine echte Scan-Session starten. Erstelle und teile den Gerätebericht, damit wir die Xiaomi-Laufzeitumgebung ohne erfundene Gerätefreigabe analysieren können.</string>
+    <string name="diagnostics_create_share">Diagnose erstellen &amp; teilen</string>
+    <string name="diagnostics_share_chooser">Gerätediagnose teilen</string>
+    <string name="diagnostics_failed">Der Gerätebericht konnte nicht erstellt oder geteilt werden.</string>
 
     <!-- Sketchfab uploader !-->
     <string name="description">Beschreibung:</string>
@@ -58,6 +63,15 @@
     <string name="export_floorplan">Als Grundriss exportieren</string>
     <string name="export_pointcloud">Als Punktwolke exportieren</string>
     <string name="export_model">Als 3D-Modell exportieren</string>
+    <string name="export_title">Engineering-Export</string>
+    <string name="export_stl_mm">STL · Millimeter</string>
+    <string name="export_3mf_mm">3MF · Millimeter</string>
+    <string name="export_ply_mesh">PLY · Mesh in Metern</string>
+    <string name="export_obj_textured">OBJ-ZIP · mit Textur</string>
+    <string name="export_save_drive">In Dateien / Google Drive speichern</string>
+    <string name="export_share_send">Teilen / verschicken</string>
+    <string name="export_saved">Export gespeichert</string>
+    <string name="export_failed">Export fehlgeschlagen</string>
     <string name="profile_resolution">Auflösung</string>
     <string name="poisson">Poisson Rekonstruktion</string>
     <string name="poisson_summary">Aktivieren Sie den Nachbearbeitungsalgorithmus, um Löcher in der Modellgeometrie zu reparieren. Beachten Sie, dass dieser Algorithmus bei offenen Räumen nicht gut funktioniert und die Nachbearbeitung verlängern kann.</string>
@@ -78,6 +92,18 @@
     <string name="offset_summary">Durch Hinzufügen eines Versatzes zur Geometrie können schmale Objekte von beiden Seiten gescannt werden. Diese Option verringert die Genauigkeit der Geometrie.</string>
     <string name="depth_sensor">Tiefensensor verwenden</string>
     <string name="depth_sensor_summary">Der aktive Tiefensensor ist genauer und scannt mehr Details.</string>
+    <string name="depth_hardware_title">Hardware-Tiefe verwenden</string>
+    <string name="depth_hardware_summary">Verwendet den physischen Tiefendatenstrom der AR-Laufzeit. Android verrät möglicherweise nicht, ob er von ToF, Stereo oder strukturiertem Licht stammt.</string>
+    <string name="depth_hardware_unavailable_title">Keine Hardware-Tiefe verfügbar</string>
+    <string name="depth_computed_summary">ARCore kann Tiefe weiterhin aus der Kamerabewegung berechnen. Laser-Autofokus ist kein LiDAR und liefert keine Tiefenkarte.</string>
+    <string name="depth_no_depth_summary">Weder Hardware- noch ARCore-Tiefe ist verfügbar. Der Scan verwendet Bildmerkmale und Überlappung.</string>
+    <string name="scan_coach_tracking_jump">Tracking-Sprung – pausiere und gehe zur letzten gut erfassten Fläche zurück.</string>
+    <string name="scan_coach_tracking_lost">Tracking verloren – richte die Kamera auf eine detailreiche Fläche und bewege sie langsam.</string>
+    <string name="scan_coach_tracking_init">Tracking wird initialisiert – bewege dich langsam um eine strukturierte Fläche.</string>
+    <string name="scan_coach_thermal_warning">Das Gerät wird warm – die Leistung kann bald gedrosselt werden.</string>
+    <string name="scan_coach_thermal_critical">Das Gerät ist zu heiss – pausiere, bevor die Scanqualität sinkt.</string>
+    <string name="scan_coach_blur_risk">Bewege das Gerät langsamer – hohes Risiko für Bewegungsunschärfe.</string>
+    <string name="scan_coach_no_depth">Keine ARCore-Tiefe verfügbar – scanne langsam und mit starker Überlappung.</string>
     <string name="gps">GPS verwenden, um die Position zu markieren</string>
     <string name="gps_summary">Mithilfe eines GPS-Tags kann auf der Karte angezeigt werden, wo das Modell erfasst wurde.</string>
     <string name="fullhd">Full-HD-Fotos aufnehmen</string>
@@ -165,6 +191,8 @@
     <string name="scan_rewind">Spulen Sie den Scanvorgang bis zu einem Zustand zurück, von dem aus Sie fortfahren möchten.</string>
 
     <!-- Scan dialog !-->
+    <string name="scan_5mm">5 mm · Kleinteil (experimentell)</string>
+    <string name="scan_8mm">8 mm · Detailobjekt</string>
     <string name="scan_1cm">1 cm - Kleines Zimmer</string>
     <string name="scan_2cm">2 cm - Drinnen</string>
     <string name="scan_4cm">4 cm - Draußen</string>
@@ -190,4 +218,20 @@
     <string name="fd_scan_type_tree">Baum</string>
     <string name="fd_scan_type_other">Andere</string>
     <string name="fd_scan_limit">Maximale Anzahl von Scans erreicht. Löschen Sie einige Scans, um fortzufahren, oder wenden Sie sich für weitere Informationen an office@forestdesign.ro.</string>
+    <string name="measure">Messen</string>
+    <string name="measure_done">Messen aktiv</string>
+    <string name="measure_undo">Letztes</string>
+    <string name="measure_clear">Löschen</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">Kein stabiler Oberflächenpunkt gefunden</string>
+    <string name="measure_need_pair">Zuerst eine vollständige Messung setzen</string>
+    <string name="measure_scale_title">TrueScale kalibrieren</string>
+    <string name="measure_scale_message">Bekannte Länge in Millimetern eingeben. Das gesamte Modell und alle Exporte werden gleichmäßig skaliert.</string>
+    <string name="measure_apply">Modell skalieren</string>
+    <string name="measure_scale_done">Modellmaßstab kalibriert</string>
+    <string name="measure_scale_failed">Modell konnte nicht skaliert werden</string>
+    <string name="measure_invalid">Ungültige Länge</string>
+    <string name="measure_quality_good">STABIL</string>
+    <string name="measure_quality_medium">PRÜFEN</string>
+    <string name="measure_quality_low">UNSICHER</string>
 </resources>

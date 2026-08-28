@@ -1,44 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:padding="5dp">
+    android:layout_width="match_parent"
+    android:layout_height="172dp"
+    android:layout_margin="2dp"
+    android:background="@drawable/scanner_project_card"
+    android:clipToOutline="true"
+    android:elevation="3dp"
+    android:padding="7dp">
 
     <ImageView
         android:id="@+id/icon"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="130dp"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:adjustViewBounds="true"
-        android:scaleType="fitCenter"
+        android:background="@color/scanner_background_raised"
+        android:clipToOutline="true"
+        android:scaleType="centerCrop"
         android:src="@drawable/ic_model_icon" />
 
     <TextView
         android:id="@+id/name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/icon"
-        android:layout_centerHorizontal="true"
-        android:textSize="12sp"
+        android:layout_width="match_parent"
+        android:layout_height="34dp"
+        android:layout_alignParentBottom="true"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
         android:maxLines="1"
-        android:ellipsize="end"/>
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:textColor="@color/scanner_text"
+        android:textSize="13sp"
+        android:textStyle="bold" />
 
     <View
         android:id="@+id/extension"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         android:layout_alignParentTop="true"
-        android:layout_alignParentRight="true"
-        android:layout_margin="2dp"
-        android:background="@drawable/ic_dataset"/>
+        android:layout_alignParentEnd="true"
+        android:layout_margin="8dp"
+        android:background="@drawable/ic_dataset" />
 
     <View
         android:id="@+id/selection"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignTop="@+id/icon"
-        android:layout_alignBottom="@+id/name"
-        android:background="#800099cc"
-        android:visibility="gone"/>
+        android:layout_height="match_parent"
+        android:background="@drawable/scanner_project_selection"
+        android:visibility="gone" />
 </RelativeLayout>

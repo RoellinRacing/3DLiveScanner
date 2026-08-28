@@ -7,6 +7,42 @@ char buffer[1024];
 
 namespace oc {
 
+    // Convert a rasterized triangle hit into an exact world-space point.  The
+    // previous inverse-distance weighting was only an approximation and could
+    // noticeably skew measurements on large or oblique triangles.
+    static glm::vec3 ExactScreenHit(const glm::vec3& a, const glm::vec3& b,
+                                    const glm::vec3& c, const glm::mat4& world2screen,
+                                    float x, float y) {
+        glm::vec4 pa = world2screen * glm::vec4(a, 1);
+        glm::vec4 pb = world2screen * glm::vec4(b, 1);
+        glm::vec4 pc = world2screen * glm::vec4(c, 1);
+        if ((fabs(pa.w) < 1e-7f) || (fabs(pb.w) < 1e-7f) || (fabs(pc.w) < 1e-7f))
+            return glm::vec3(99999);
+
+        glm::vec2 sa(pa.x / pa.w, pa.y / pa.w);
+        glm::vec2 sb(pb.x / pb.w, pb.y / pb.w);
+        glm::vec2 sc(pc.x / pc.w, pc.y / pc.w);
+        float denominator = (sb.y - sc.y) * (sa.x - sc.x) +
+                            (sc.x - sb.x) * (sa.y - sc.y);
+        if (fabs(denominator) < 1e-9f)
+            return glm::vec3(99999);
+
+        float wa = ((sb.y - sc.y) * (x - sc.x) +
+                    (sc.x - sb.x) * (y - sc.y)) / denominator;
+        float wb = ((sc.y - sa.y) * (x - sc.x) +
+                    (sa.x - sc.x) * (y - sc.y)) / denominator;
+        float wc = 1.0f - wa - wb;
+
+        // Perspective-correct interpolation of the world-space attribute.
+        wa /= pa.w;
+        wb /= pb.w;
+        wc /= pc.w;
+        float sum = wa + wb + wc;
+        if (fabs(sum) < 1e-9f)
+            return glm::vec3(99999);
+        return (wa * a + wb * b + wc * c) / sum;
+    }
+
     void Selector::CompleteSelection(std::vector<Mesh> &mesh, bool inverse) {
         for (Mesh& m : mesh)
             for (unsigned int i = 0; i < m.vertices.size(); i++)
@@ -360,19 +396,7 @@ namespace oc {
             float vx = 2.0f * x / (float)viewport_width - 1.0f;
             float vy =-2.0f * y / (float)viewport_height + 1.0f;
 
-            //project triangle on the screen
-            glm::vec4 a2 = world2screen * glm::vec4(a, 1);
-            glm::vec4 b2 = world2screen * glm::vec4(b, 1);
-            glm::vec4 c2 = world2screen * glm::vec4(c, 1);
-            a2 /= fabs(a2.w);
-            b2 /= fabs(b2.w);
-            c2 /= fabs(c2.w);
-
-            //barycentric interpolation
-            float wa = 1.0f / (glm::length(glm::vec2(a2.x - vx, a2.y - vy)));
-            float wb = 1.0f / (glm::length(glm::vec2(b2.x - vx, b2.y - vy)));
-            float wc = 1.0f / (glm::length(glm::vec2(c2.x - vx, c2.y - vy)));
-            return (wa * a + wb * b + wc * c) / (wa + wb + wc);
+            return ExactScreenHit(a, b, c, world2screen, vx, vy);
         }
         return glm::vec3(99999);
     }
@@ -404,19 +428,7 @@ namespace oc {
                 float vx = 2.0f * points[i].x / (float)viewport_width - 1.0f;
                 float vy =-2.0f * points[i].y / (float)viewport_height + 1.0f;
 
-                //project triangle on the screen
-                glm::vec4 a2 = world2screen * glm::vec4(a, 1);
-                glm::vec4 b2 = world2screen * glm::vec4(b, 1);
-                glm::vec4 c2 = world2screen * glm::vec4(c, 1);
-                a2 /= fabs(a2.w);
-                b2 /= fabs(b2.w);
-                c2 /= fabs(c2.w);
-
-                //barycentric interpolation
-                float wa = 1.0f / (glm::length(glm::vec2(a2.x - vx, a2.y - vy)));
-                float wb = 1.0f / (glm::length(glm::vec2(b2.x - vx, b2.y - vy)));
-                float wc = 1.0f / (glm::length(glm::vec2(c2.x - vx, c2.y - vy)));
-                output.push_back((wa * a + wb * b + wc * c) / (wa + wb + wc));
+                output.push_back(ExactScreenHit(a, b, c, world2screen, vx, vy));
             } else {
                 output.emplace_back(99999);
             }

@@ -14,6 +14,7 @@ namespace oc {
         void GenerateFaceNormals();
         void GenerateNormals();
         float GetFloorLevel(glm::vec3 pos);
+        void InvalidateGeometryCache() { aabbUpdate = vertices.size() + 1; }
         void MirrorZ();
         void Normals2Color();
         void Reindex();

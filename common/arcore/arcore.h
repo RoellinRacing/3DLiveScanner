@@ -91,6 +91,7 @@ namespace oc {
         float resolution;
         bool face_not_all = false;
         bool texture_initialized_ = false;
+        bool session_ready_ = false;
         bool useDepth;
         bool useDepthRaw;
         int viewportWidth;

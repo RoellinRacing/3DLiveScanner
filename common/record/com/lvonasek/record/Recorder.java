@@ -18,7 +18,9 @@ import android.media.MediaMuxer;
 import android.media.MediaRecorder;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
+import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.util.Log;
 
@@ -35,7 +37,10 @@ import org.jcodec.scale.BitmapUtil;
 
 import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.text.SimpleDateFormat;
@@ -313,6 +318,7 @@ public class Recorder {
         mIntBuffer.position(0);
     }
 
+    @SuppressWarnings("deprecation")
     private static Uri getFile(Context context, boolean video) {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
         Date date = new Date(System.currentTimeMillis());
@@ -325,14 +331,46 @@ public class Recorder {
         ContentValues contentValues = new ContentValues();
         contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
         contentValues.put(MediaStore.MediaColumns.MIME_TYPE, video ? "video/mp4": "image/jpeg");
-        contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM);
+        } else {
+            // RELATIVE_PATH does not exist in MediaProvider before Android 10.
+            File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+            contentValues.put(MediaStore.MediaColumns.DATA, new File(directory, name).getAbsolutePath());
+        }
 
         return resolver.insert(video ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI : MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
     }
 
+    private static int getMuxerBufferFlags(MediaExtractor extractor) {
+        // MediaExtractor and MediaCodec use different @IntDef domains even
+        // though some values currently overlap. Only the sync/key-frame bit is
+        // meaningful for the unencrypted streams written by this recorder.
+        return (extractor.getSampleFlags() & MediaExtractor.SAMPLE_FLAG_SYNC) != 0
+                ? MediaCodec.BUFFER_FLAG_KEY_FRAME
+                : 0;
+    }
+
+    private static void copyToUri(Context context, File source, Uri destination) throws IOException {
+        try (FileInputStream input = new FileInputStream(source);
+             OutputStream output = context.getContentResolver().openOutputStream(destination, "w")) {
+            if (output == null) {
+                throw new IOException("Unable to open video destination");
+            }
+            byte[] buffer = new byte[64 * 1024];
+            int length;
+            while ((length = input.read(buffer)) >= 0) {
+                output.write(buffer, 0, length);
+            }
+        }
+    }
+
     private static void mixTracks(Context context) {
         try {
-            FileDescriptor file = context.getContentResolver().openFileDescriptor(getFile(context, true), "rw").getFileDescriptor();
+            Uri outputUri = getFile(context, true);
+            if (outputUri == null) {
+                throw new IOException("Unable to create video destination");
+            }
 
             MediaExtractor videoExtractor = new MediaExtractor();
             videoExtractor.setDataSource(mVideoFile.getAbsolutePath());
@@ -342,7 +380,23 @@ public class Recorder {
                 audioExtractor.setDataSource(mAudioFile.getAbsolutePath());
             }
 
-            MediaMuxer muxer = new MediaMuxer(file, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            ParcelFileDescriptor outputDescriptor = null;
+            File legacyOutput = null;
+            MediaMuxer muxer;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                outputDescriptor = context.getContentResolver().openFileDescriptor(outputUri, "rw");
+                if (outputDescriptor == null) {
+                    throw new IOException("Unable to open video destination");
+                }
+                muxer = new MediaMuxer(outputDescriptor.getFileDescriptor(),
+                        MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            } else {
+                // The FileDescriptor constructor was added in API 26. On API
+                // 24/25 mux into app-private storage, then copy to MediaStore.
+                legacyOutput = File.createTempFile("3dscanner-", ".mp4", context.getCacheDir());
+                muxer = new MediaMuxer(legacyOutput.getAbsolutePath(),
+                        MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            }
 
             videoExtractor.selectTrack(0);
             MediaFormat videoFormat = videoExtractor.getTrackFormat(0);
@@ -385,7 +439,7 @@ public class Recorder {
                 else
                 {
                     videoBufferInfo.presentationTimeUs = videoExtractor.getSampleTime();
-                    videoBufferInfo.flags = videoExtractor.getSampleFlags();
+                    videoBufferInfo.flags = getMuxerBufferFlags(videoExtractor);
                     muxer.writeSampleData(videoTrack, videoBuf, videoBufferInfo);
                     videoExtractor.advance();
                 }
@@ -407,7 +461,7 @@ public class Recorder {
                     else
                     {
                         audioBufferInfo.presentationTimeUs = audioExtractor.getSampleTime();
-                        audioBufferInfo.flags = audioExtractor.getSampleFlags();
+                        audioBufferInfo.flags = getMuxerBufferFlags(audioExtractor);
                         muxer.writeSampleData(audioTrack, audioBuf, audioBufferInfo);
                         audioExtractor.advance();
                     }
@@ -416,13 +470,21 @@ public class Recorder {
 
             muxer.stop();
             muxer.release();
+            videoExtractor.release();
+            audioExtractor.release();
 
-            MediaScannerConnection.scanFile(context,
-                    new String[] { file.toString() }, null,
-                    (path, uri) -> {
-                        Log.i("ExternalStorage", "Scanned " + path + ":");
-                        Log.i("ExternalStorage", "-> uri=" + uri);
-                    });
+            if (outputDescriptor != null) {
+                outputDescriptor.close();
+            }
+            if (legacyOutput != null) {
+                try {
+                    copyToUri(context, legacyOutput, outputUri);
+                } finally {
+                    if (!legacyOutput.delete()) {
+                        legacyOutput.deleteOnExit();
+                    }
+                }
+            }
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,6 +1,8 @@
 #include <cstdio>
+#include <cmath>
 #include <sstream>
 #include <arcore/service.h>
+#include <exporter/cad_export.h>
 #include <exporter/csvposes.h>
 #include <exporter/floorpln.h>
 #include <postproc/optimizer.h>
@@ -26,15 +28,24 @@ namespace oc {
         }
     }
 
-    App::App() :  gyro(true),
+    App::App() :  ar(nullptr),
+                  gyro(true),
+                  oriented(false),
+                  movex(0),
                   lastMovex(0),
+                  movey(0),
                   lastMovey(0),
+                  movez(0),
                   lastMovez(0),
+                  orbit(0),
                   lastOrbit(0),
+                  pitch(0),
                   lastPitch(0),
-                  lastYaw(0) {
-        ar = nullptr;
-        oriented = false;
+                  yaw(0),
+                  lastYaw(0),
+                  lowest(0),
+                  viewportWidth(1),
+                  viewportHeight(1) {
     }
 
     bool App::OnARServiceConnected(JNIEnv *env, jobject context, double res, double dmin,
@@ -63,6 +74,8 @@ namespace oc {
             ar->OnDisplayGeometryChanged(0, width, height, fullhd);
         }
         reconstruction.scene.SetupViewPort(width, height);
+        viewportWidth = width;
+        viewportHeight = height;
         selector.Init(width, height);
         reconstruction.render_mutex_.unlock();
     }
@@ -559,7 +572,7 @@ namespace oc {
         int index = 0;
         std::vector<std::string> names;
         for (Mesh& m : reconstruction.scene.static_meshes_) {
-            if (m.imageOwner) {
+            if (m.image && m.imageOwner) {
                 std::ostringstream ss;
                 ss << filename.substr(0, filename.size() - 4).c_str();
                 ss << "_";
@@ -576,10 +589,26 @@ namespace oc {
         index = 0;
         File3d(filename, true).WriteModel(reconstruction.scene.static_meshes_);
         for (Mesh& m : reconstruction.scene.static_meshes_)
-            if (m.imageOwner)
+            if (m.image && m.imageOwner)
                 m.image->SetName(names[index++]);
         reconstruction.render_mutex_.unlock();
         reconstruction.binder_mutex_.unlock();
+    }
+
+    bool App::ExportEngineering(std::string filename, int format) {
+        reconstruction.binder_mutex_.lock();
+        reconstruction.render_mutex_.lock();
+        bool ok = false;
+        if (format == 0) {
+            ok = CadExport::WriteBinaryStl(filename, reconstruction.scene.static_meshes_);
+        } else if (format == 1) {
+            ok = CadExport::Write3mfModelXml(filename, reconstruction.scene.static_meshes_);
+        } else if (format == 2) {
+            ok = CadExport::WriteAsciiPly(filename, reconstruction.scene.static_meshes_);
+        }
+        reconstruction.render_mutex_.unlock();
+        reconstruction.binder_mutex_.unlock();
+        return ok;
     }
 
     void App::SetTextureParams(int detail, int res, int count) {
@@ -670,6 +699,127 @@ namespace oc {
 
         reconstruction.render_mutex_.unlock();
         reconstruction.binder_mutex_.unlock();
+    }
+
+    std::vector<float> App::PickMeasurementPoint(float x, float y) {
+        reconstruction.binder_mutex_.lock();
+        reconstruction.render_mutex_.lock();
+        std::vector<float> output;
+        if (!reconstruction.scene.renderer || reconstruction.scene.static_meshes_.empty()) {
+            reconstruction.render_mutex_.unlock();
+            reconstruction.binder_mutex_.unlock();
+            return output;
+        }
+
+        // Batch-rasterize a small cross around the requested pixel.  The center
+        // is the actual measurement point; its neighbours provide a local
+        // continuity score without pretending to be an absolute accuracy value.
+        std::vector<glm::vec2> taps;
+        taps.push_back(glm::vec2(x, y));
+        taps.push_back(glm::vec2(x + 4, y));
+        taps.push_back(glm::vec2(x - 4, y));
+        taps.push_back(glm::vec2(x, y + 4));
+        taps.push_back(glm::vec2(x, y - 4));
+        glm::mat4 matrix = reconstruction.scene.renderer->camera.projection *
+                           reconstruction.scene.renderer->camera.GetView();
+        std::vector<glm::vec3> hits = selector.Transform(
+                reconstruction.scene.static_meshes_, matrix, taps, true);
+
+        if (!hits.empty() && (fabs(hits[0].x) < 90000) &&
+            (fabs(hits[0].y) < 90000) && (fabs(hits[0].z) < 90000)) {
+            int valid = 1;
+            float spread = 0;
+            for (unsigned int i = 1; i < hits.size(); ++i) {
+                if ((fabs(hits[i].x) < 90000) && (fabs(hits[i].y) < 90000) &&
+                    (fabs(hits[i].z) < 90000)) {
+                    valid++;
+                    spread = glm::max(spread, glm::length(hits[i] - hits[0]));
+                }
+            }
+            float cameraDistance = glm::max(
+                    0.01f,
+                    glm::length(reconstruction.scene.renderer->camera.position - hits[0]));
+            float continuity = 1.0f - glm::clamp(
+                    spread / (cameraDistance * 0.03f), 0.0f, 1.0f);
+            float quality = 0.55f * ((float) valid / (float) hits.size()) +
+                            0.45f * continuity;
+            output.push_back(hits[0].x);
+            output.push_back(hits[0].y);
+            output.push_back(hits[0].z);
+            output.push_back(quality);
+        }
+        reconstruction.render_mutex_.unlock();
+        reconstruction.binder_mutex_.unlock();
+        return output;
+    }
+
+    std::vector<float> App::ProjectMeasurementPoints(const std::vector<float>& points) {
+        reconstruction.binder_mutex_.lock();
+        reconstruction.render_mutex_.lock();
+        std::vector<float> output;
+        if (reconstruction.scene.renderer && (viewportWidth > 0) && (viewportHeight > 0)) {
+            glm::mat4 matrix = reconstruction.scene.renderer->camera.projection *
+                               reconstruction.scene.renderer->camera.GetView();
+            for (unsigned int i = 0; i + 2 < points.size(); i += 3) {
+                glm::vec4 projected = matrix * glm::vec4(
+                        points[i], points[i + 1], points[i + 2], 1.0f);
+                bool visible = projected.w > 0.00001f;
+                if (visible)
+                    projected /= projected.w;
+                visible = visible && (projected.z >= -1) && (projected.z <= 1);
+                output.push_back((projected.x * 0.5f + 0.5f) * viewportWidth);
+                output.push_back((0.5f - projected.y * 0.5f) * viewportHeight);
+                output.push_back(visible ? 1.0f : 0.0f);
+            }
+        }
+        reconstruction.render_mutex_.unlock();
+        reconstruction.binder_mutex_.unlock();
+        return output;
+    }
+
+    bool App::ApplyUniformScale(float factor, float anchorX, float anchorY, float anchorZ) {
+        if (!std::isfinite(factor) || (factor < 0.01f) || (factor > 100.0f))
+            return false;
+
+        reconstruction.binder_mutex_.lock();
+        reconstruction.render_mutex_.lock();
+        if (reconstruction.scene.static_meshes_.empty()) {
+            reconstruction.render_mutex_.unlock();
+            reconstruction.binder_mutex_.unlock();
+            return false;
+        }
+
+        glm::vec3 anchor(anchorX, anchorY, anchorZ);
+        for (const Mesh& mesh : reconstruction.scene.static_meshes_) {
+            for (const glm::vec3& vertex : mesh.vertices) {
+                glm::vec3 scaled = anchor + (vertex - anchor) * factor;
+                if (!std::isfinite(scaled.x) || !std::isfinite(scaled.y) ||
+                    !std::isfinite(scaled.z)) {
+                    reconstruction.render_mutex_.unlock();
+                    reconstruction.binder_mutex_.unlock();
+                    return false;
+                }
+            }
+        }
+
+        Backup();
+        for (Mesh& mesh : reconstruction.scene.static_meshes_) {
+            for (glm::vec3& vertex : mesh.vertices)
+                vertex = anchor + (vertex - anchor) * factor;
+            mesh.InvalidateGeometryCache();
+        }
+
+        // Keep the floor reference consistent. Camera coordinates deliberately
+        // stay unchanged: CameraControl owns the matching Java-side target and
+        // would otherwise restore stale, unscaled coordinates on the next touch.
+        lowest = anchorY + (lowest - anchorY) * factor;
+        editor.SetCenter(anchor);
+        reconstruction.scene.uniformPos = anchor;
+        reconstruction.scene.UpdateSelected(false);
+
+        reconstruction.render_mutex_.unlock();
+        reconstruction.binder_mutex_.unlock();
+        return true;
     }
 
     float App::GetDistance(float x1, float y1, float x2, float y2) {
@@ -949,6 +1099,12 @@ Java_com_lvonasek_arcore3dscanner_main_JNI_save(JNIEnv* env, jclass, jbyteArray 
     return (jboolean)app.Save(jbyteArray2string(env, name));
 }
 
+JNIEXPORT jboolean JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_exportEngineering(
+        JNIEnv* env, jclass, jbyteArray name, jint format) {
+    return (jboolean) app.ExportEngineering(jbyteArray2string(env, name), format);
+}
+
 JNIEXPORT void JNICALL
 Java_com_lvonasek_arcore3dscanner_main_JNI_saveWithTextures(JNIEnv* env, jclass, jbyteArray name) {
     app.SaveWithTextures(jbyteArray2string(env, name));
@@ -976,6 +1132,36 @@ JNIEXPORT jfloat JNICALL
 Java_com_lvonasek_arcore3dscanner_main_JNI_getDistance(JNIEnv*, jclass, jfloat x1,
                                                        jfloat y1, jfloat x2, jfloat y2) {
     return app.GetDistance(x1, y1, x2, y2);
+}
+
+JNIEXPORT jfloatArray JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_pickMeasurementPoint(
+        JNIEnv* env, jclass, jfloat x, jfloat y) {
+    std::vector<float> values = app.PickMeasurementPoint(x, y);
+    jfloatArray output = env->NewFloatArray((jsize) values.size());
+    if (!values.empty())
+        env->SetFloatArrayRegion(output, 0, (jsize) values.size(), values.data());
+    return output;
+}
+
+JNIEXPORT jfloatArray JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_projectMeasurementPoints(
+        JNIEnv* env, jclass, jfloatArray input) {
+    jsize size = env->GetArrayLength(input);
+    std::vector<float> values((unsigned int) size);
+    if (size > 0)
+        env->GetFloatArrayRegion(input, 0, size, values.data());
+    std::vector<float> projected = app.ProjectMeasurementPoints(values);
+    jfloatArray output = env->NewFloatArray((jsize) projected.size());
+    if (!projected.empty())
+        env->SetFloatArrayRegion(output, 0, (jsize) projected.size(), projected.data());
+    return output;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_applyUniformScale(
+        JNIEnv*, jclass, jfloat factor, jfloat x, jfloat y, jfloat z) {
+    return (jboolean) app.ApplyUniformScale(factor, x, y, z);
 }
 
 JNIEXPORT jfloat JNICALL

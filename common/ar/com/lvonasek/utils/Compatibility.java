@@ -3,10 +3,12 @@ package com.lvonasek.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.os.Build;
+import android.os.SystemClock;
 
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.CameraConfig;
@@ -18,7 +20,14 @@ import com.huawei.hiar.ARWorldTrackingConfig;
 
 public class Compatibility {
 
-    public static boolean hasToFSensor(Activity activity) {
+    private static final String GOOGLE_PLAY_PACKAGE = "com.android.vending";
+    private static final String HUAWEI_AR_ENGINE_PACKAGE = "com.huawei.arengine.service";
+
+    /**
+     * Reports Camera2 DEPTH_OUTPUT. This can be computational depth and must not
+     * be presented as proof of a physical ToF/LiDAR sensor.
+     */
+    public static boolean hasCamera2DepthOutput(Activity activity) {
         try {
             CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
             for (String cameraId : manager.getCameraIdList()) {
@@ -43,10 +52,18 @@ public class Compatibility {
         return false;
     }
 
+    /** Kept for Huawei backend compatibility; use the honest name in new UI. */
+    @Deprecated
+    public static boolean hasToFSensor(Activity activity) {
+        return hasCamera2DepthOutput(activity);
+    }
+
     public static boolean isARSupported(Context context) {
-        ArCoreApk.Availability availability = ArCoreApk.getInstance().checkAvailability(context);
+        ArCoreApk.Availability availability = getArCoreAvailability(context);
         if (availability == ArCoreApk.Availability.SUPPORTED_INSTALLED) {
-            return true;
+            // Do not expose scanning merely from the catalogue result. A real,
+            // closable Session proves that this runtime can actually start.
+            return isARCoreSessionUsable(context);
         }
         if (availability == ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD) {
             return true;
@@ -54,23 +71,37 @@ public class Compatibility {
         if (availability == ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED) {
             return true;
         }
+        // Some OEM/OS combinations can lag behind ARCore's asynchronous
+        // availability catalogue. This is deliberately not a device override:
+        // scanning is enabled only if the public Session constructor succeeds.
+        if (isARCoreSessionUsable(context)) return true;
+        return isHuaweiSessionUsable(context);
+    }
+
+    /** A scan entry point must use this stricter runtime check. */
+    public static boolean isScanningSessionUsable(Context context) {
+        return isARCoreSessionUsable(context) || isHuaweiSessionUsable(context);
+    }
+
+    /** Runtime probe for Huawei AR Engine without starting camera capture. */
+    public static boolean isHuaweiSessionUsable(Context context) {
+        if (!isHuaweiArEngineAvailable(context)) return false;
         try {
             ARSession session = new ARSession(context);
             ARWorldTrackingConfig config = new ARWorldTrackingConfig(session);
             session.configure(config);
             return true;
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Throwable ignored) {
             return false;
         }
     }
 
     public static boolean isARCoreSupportedAndUpToDate(Activity activity) {
         // Make sure ARCore is installed and supported on this device.
-        ArCoreApk.Availability availability = ArCoreApk.getInstance().checkAvailability(activity);
+        ArCoreApk.Availability availability = getArCoreAvailability(activity);
         switch (availability) {
             case SUPPORTED_INSTALLED:
-                break;
+                return isARCoreSessionUsable(activity);
             case SUPPORTED_APK_TOO_OLD:
             case SUPPORTED_NOT_INSTALLED:
                 try {
@@ -81,19 +112,54 @@ public class Compatibility {
                         case INSTALL_REQUESTED:
                             return false;
                         case INSTALLED:
-                            break;
+                            return isARCoreSessionUsable(activity);
                     }
                 } catch (Exception e) {
                     return false;
                 }
-                break;
+                return false;
             case UNKNOWN_ERROR:
             case UNKNOWN_CHECKING:
             case UNKNOWN_TIMED_OUT:
             case UNSUPPORTED_DEVICE_NOT_CAPABLE:
+                // Runtime proof is stronger than a stale/unknown catalogue
+                // response, while a failed Session remains a hard stop.
+                return isARCoreSessionUsable(activity);
+            default:
                 return false;
         }
-        return true;
+    }
+
+    /**
+     * Safe runtime probe using only the public ARCore API. The temporary
+     * Session never resumes the camera and is closed on every path.
+     */
+    public static boolean isARCoreSessionUsable(Context context) {
+        Session session = null;
+        try {
+            session = new Session(context);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        } finally {
+            closeSession(session);
+        }
+    }
+
+    private static ArCoreApk.Availability getArCoreAvailability(Context context) {
+        try {
+            ArCoreApk.Availability availability =
+                    ArCoreApk.getInstance().checkAvailability(context);
+            for (int retry = 0;
+                 availability == ArCoreApk.Availability.UNKNOWN_CHECKING && retry < 8;
+                 retry++) {
+                SystemClock.sleep(75);
+                availability = ArCoreApk.getInstance().checkAvailability(context);
+            }
+            return availability;
+        } catch (Throwable ignored) {
+            return ArCoreApk.Availability.UNKNOWN_ERROR;
+        }
     }
 
     public static boolean isDaydreamSupported(Context context)
@@ -107,38 +173,68 @@ public class Compatibility {
     }
 
     public static boolean isGoogleDepthSupported(Activity activity) {
+        Session session = null;
         try {
-            if (!isPlayStoreSupported(activity)) {
-                return false;
-            }
-
-            Session session = new Session(activity);
-            return session.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY);
-        } catch (Exception e) {
+            session = new Session(activity);
+            // GOOGLE_SFM configures AUTOMATIC depth in the native backend.
+            return session.isDepthModeSupported(Config.DepthMode.AUTOMATIC);
+        } catch (Throwable e) {
             e.printStackTrace();
+        } finally {
+            closeSession(session);
         }
         return false;
     }
 
-    public static boolean isGoogleToFSupported(Activity activity) {
+    /** Raw depth may be software-generated; it is not proof of ToF/LiDAR. */
+    public static boolean isGoogleRawDepthSupported(Activity activity) {
+        Session session = null;
         try {
-            if (!isPlayStoreSupported(activity)) {
-                return false;
-            }
+            session = new Session(activity);
+            return session.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        } finally {
+            closeSession(session);
+        }
+        return false;
+    }
 
-            Session session = new Session(activity);
+    public static boolean isGoogleHardwareDepthSupported(Activity activity) {
+        Session session = null;
+        try {
+            session = new Session(activity);
             for (CameraConfig config : session.getSupportedCameraConfigs()) {
                 if (config.getDepthSensorUsage() == CameraConfig.DepthSensorUsage.REQUIRE_AND_USE) {
                     return true;
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
+        } finally {
+            closeSession(session);
         }
         return false;
     }
 
-    public static boolean isHuaweiToFSupported(Activity activity) {
+    /** Compatibility alias for existing callers. Hardware depth is not always ToF. */
+    @Deprecated
+    public static boolean isGoogleToFSupported(Activity activity) {
+        return isGoogleHardwareDepthSupported(activity);
+    }
+
+    private static void closeSession(Session session) {
+        if (session == null) {
+            return;
+        }
+        try {
+            session.close();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static boolean isHuaweiHardwareDepthSupported(Activity activity) {
+        if (!isHuaweiArEngineAvailable(activity)) return false;
         //blacklist Huawei Mate 20, Huawei Mate 20 RS, Huawei Mate 20 X
         if (Build.DEVICE.startsWith("HWHMA")) return false;
         if (Build.DEVICE.startsWith("HWLYA")) return false;
@@ -149,8 +245,9 @@ public class Compatibility {
         //blacklist Huawei P30
         if (Build.DEVICE.startsWith("HWELE")) return false;
 
-        //blacklist devices without ToF sensor
-        if (!hasToFSensor(activity)) return false;
+        // Huawei depth requires a Camera2 depth-output path. This still does not
+        // identify whether the underlying hardware is ToF, stereo or structured light.
+        if (!hasCamera2DepthOutput(activity)) return false;
 
         try {
             ARSession session = new ARSession(activity);
@@ -164,17 +261,36 @@ public class Compatibility {
         }
     }
 
+    /** Compatibility alias for existing callers. Hardware depth is not always ToF. */
+    @Deprecated
+    public static boolean isHuaweiToFSupported(Activity activity) {
+        return isHuaweiHardwareDepthSupported(activity);
+    }
+
     public static boolean isPlayStoreSupported(Context context)
     {
-        Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
-        mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-        for (ResolveInfo info : context.getPackageManager().queryIntentActivities( mainIntent, 0))
-            if (info.activityInfo.packageName.compareTo("com.android.vending") == 0)
-                return true;
-        return false;
+        return isPackageInstalled(context, GOOGLE_PLAY_PACKAGE);
+    }
+
+    public static boolean isHuaweiArEngineAvailable(Context context) {
+        return isPackageInstalled(context, HUAWEI_AR_ENGINE_PACKAGE);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static boolean isPackageInstalled(Context context, String packageName) {
+        try {
+            return context.getPackageManager()
+                    .getApplicationInfo(packageName, 0).enabled;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return false;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static boolean shouldUseHuawei(Activity activity) {
-        return isHuaweiToFSupported(activity) || !isPlayStoreSupported(activity);
+        if (!isHuaweiArEngineAvailable(activity)) return false;
+        if (isHuaweiHardwareDepthSupported(activity)) return true;
+        return !isPlayStoreSupported(activity) && isHuaweiSessionUsable(activity);
     }
 }

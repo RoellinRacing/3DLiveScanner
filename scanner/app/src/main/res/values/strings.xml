@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- File Manager !-->
-    <string name="app_name" translatable="false">3D Live Scanner</string>
+    <string name="app_name" translatable="false">3D Live Scanner MAX</string>
     <string name="no_data">No 3D models</string>
     <string name="migrating_data">Migrating data into a new folder, please wait…</string>
     <string name="name_exists">A model with the entered name already exists.</string>
@@ -31,6 +31,11 @@
     <string name="resolve_manually">Resolve the problem</string>
     <string name="show_normals">Show normals</string>
     <string name="photo_mode">Photo mode</string>
+    <string name="scan_runtime_unavailable_title">3D scanning unavailable</string>
+    <string name="scan_runtime_unavailable_message">Neither ARCore nor Huawei AR Engine could start a real scanning session on this device. Create and share the device report so we can diagnose the Xiaomi runtime without guessing device support.</string>
+    <string name="diagnostics_create_share">Create &amp; share diagnostics</string>
+    <string name="diagnostics_share_chooser">Share device diagnostics</string>
+    <string name="diagnostics_failed">The device report could not be created or shared.</string>
 
     <!-- Sketchfab uploader !-->
     <string name="description">Description:</string>
@@ -59,6 +64,15 @@
     <string name="export_floorplan">Export as floorplan</string>
     <string name="export_pointcloud">Export as pointcloud</string>
     <string name="export_model">Export as 3D model</string>
+    <string name="export_title">Engineering export</string>
+    <string name="export_stl_mm">STL · millimetres</string>
+    <string name="export_3mf_mm">3MF · millimetres</string>
+    <string name="export_ply_mesh">PLY · mesh in metres</string>
+    <string name="export_obj_textured">OBJ-ZIP · textured</string>
+    <string name="export_save_drive">Save to Files / Google Drive</string>
+    <string name="export_share_send">Share / send</string>
+    <string name="export_saved">Export saved</string>
+    <string name="export_failed">Export failed</string>
     <string name="profile_resolution">Resolution</string>
     <string name="poisson">Poisson reconstruction</string>
     <string name="poisson_summary">Enable postprocessing algorithm to fix holes in model geometry, note that this algorithm does not work well with open spaces and it can make postprocessing longer.</string>
@@ -79,6 +93,18 @@
     <string name="offset_summary">Adding offset to the geometry enables to scan thin objects from both sides. This option makes the geometry less accurate.</string>
     <string name="depth_sensor">Use depth sensor</string>
     <string name="depth_sensor_summary">Active depth sensor is more accurate and scans more details.</string>
+    <string name="depth_hardware_title">Use hardware depth</string>
+    <string name="depth_hardware_summary">Uses the physical depth stream exposed by the AR runtime. Android may not reveal whether it comes from ToF, stereo or structured light.</string>
+    <string name="depth_hardware_unavailable_title">Hardware depth unavailable</string>
+    <string name="depth_computed_summary">ARCore can still calculate depth from camera motion. Laser autofocus is not LiDAR or a depth map.</string>
+    <string name="depth_no_depth_summary">No hardware or ARCore depth mode is available. Scanning uses feature points and image overlap.</string>
+    <string name="scan_coach_tracking_jump">Tracking jump – pause and return to the last well-scanned surface.</string>
+    <string name="scan_coach_tracking_lost">Tracking lost – aim at a detailed surface and move slowly.</string>
+    <string name="scan_coach_tracking_init">Initializing tracking – move slowly around a textured surface.</string>
+    <string name="scan_coach_thermal_warning">Device is warm – performance throttling may start.</string>
+    <string name="scan_coach_thermal_critical">Device is too hot – pause before scan quality is reduced.</string>
+    <string name="scan_coach_blur_risk">Move more slowly – high motion-blur risk.</string>
+    <string name="scan_coach_no_depth">No ARCore depth at runtime – scan slowly with strong overlap.</string>
     <string name="gps">Use GPS to tag the position</string>
     <string name="gps_summary">Using a GPS tag is possible to show on the map where the model was captured.</string>
     <string name="fullhd">Capture fullHD photos</string>
@@ -166,6 +192,8 @@
     <string name="scan_rewind">Rewind the scan process to a state from which you want to continue.</string>
 
     <!-- Scan dialog !-->
+    <string name="scan_5mm">5 mm · Small part (experimental)</string>
+    <string name="scan_8mm">8 mm · High-detail object</string>
     <string name="scan_1cm">1 cm - Small room</string>
     <string name="scan_2cm">2 cm - Interior</string>
     <string name="scan_4cm">4 cm - Exterior</string>
@@ -194,4 +222,20 @@
     <string name="fd_scan_type_tree">Tree</string>
     <string name="fd_scan_type_other">Others</string>
     <string name="fd_scan_limit">Maximal amount of scans reached. Delete some scans to continue or contact office@forestdesign.ro for more information.</string>
+    <string name="measure">Measure</string>
+    <string name="measure_done">Measuring active</string>
+    <string name="measure_undo">Last</string>
+    <string name="measure_clear">Clear</string>
+    <string name="measure_scale">TrueScale</string>
+    <string name="measure_miss">No stable surface point found</string>
+    <string name="measure_need_pair">Set a complete measurement first</string>
+    <string name="measure_scale_title">Calibrate TrueScale</string>
+    <string name="measure_scale_message">Enter the known length in millimetres. The complete model and all exports will be scaled uniformly.</string>
+    <string name="measure_apply">Scale model</string>
+    <string name="measure_scale_done">Model scale calibrated</string>
+    <string name="measure_scale_failed">The model could not be scaled</string>
+    <string name="measure_invalid">Invalid length</string>
+    <string name="measure_quality_good">STABLE</string>
+    <string name="measure_quality_medium">CHECK</string>
+    <string name="measure_quality_low">UNSTABLE</string>
 </resources>

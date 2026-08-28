@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="scanner_background">#080B10</color>
+    <color name="scanner_background_raised">#0E131B</color>
+    <color name="scanner_surface">#E6171D27</color>
+    <color name="scanner_surface_pressed">#F0263040</color>
+    <color name="scanner_surface_selected">#E6253B46</color>
+    <color name="scanner_border">#35FFFFFF</color>
+    <color name="scanner_border_strong">#66FFFFFF</color>
+    <color name="scanner_text">#F7F9FC</color>
+    <color name="scanner_text_secondary">#A9B4C3</color>
+    <color name="scanner_accent">#39E6A6</color>
+    <color name="scanner_accent_pressed">#19BF82</color>
+    <color name="scanner_blue">#6A93FF</color>
+    <color name="scanner_warning">#FFB547</color>
+    <color name="scanner_error">#FF5D6C</color>
+    <color name="scanner_scrim">#A6080B10</color>
+</resources>

@@ -20,6 +20,8 @@
     </string-array>
 
     <string-array name="profile_resolution_names">
+        <item>@string/scan_5mm</item>
+        <item>@string/scan_8mm</item>
         <item>@string/scan_1cm</item>
         <item>@string/scan_2cm</item>
         <item>@string/scan_4cm</item>
@@ -27,6 +29,8 @@
     </string-array>
 
     <string-array name="profile_resolution_values">
+        <item>0.005</item>
+        <item>0.008</item>
         <item>0.01</item>
         <item>0.02</item>
         <item>0.04</item>

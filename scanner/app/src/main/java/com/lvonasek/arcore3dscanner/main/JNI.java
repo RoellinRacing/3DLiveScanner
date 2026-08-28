@@ -5,6 +5,8 @@ import android.content.res.Resources;
 
 import com.lvonasek.arcore3dscanner.R;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Interfaces between native C++ code and Java code.
  */
@@ -58,6 +60,9 @@ public class JNI
   // Save current 3D model with textures (editor usage)
   public static native void saveWithTextures(byte[] name);
 
+  // 0 = binary STL (mm), 1 = 3MF model XML (mm), 2 = mesh PLY (m)
+  public static native boolean exportEngineering(byte[] name, int format);
+
   // Set parameters of texturing
   public static native void setTextureParams(int detail, int res, int count);
 
@@ -69,6 +74,15 @@ public class JNI
 
   // Count distance between two points on screen
   public static native float getDistance(float x1, float y1, float x2, float y2);
+
+  // Pick an exact model point. Returns [x, y, z, pick stability] or an empty array.
+  public static native float[] pickMeasurementPoint(float x, float y);
+
+  // Project xyz triples to [screenX, screenY, visible] triples.
+  public static native float[] projectMeasurementPoints(float[] worldPoints);
+
+  // Uniformly scale the model around a fixed world-space anchor.
+  public static native boolean applyUniformScale(float factor, float anchorX, float anchorY, float anchorZ);
 
   // Detect floor level for position
   public static native float getFloorLevel(float x, float y, float z);
@@ -118,9 +132,18 @@ public class JNI
   // Indicate that the motion tracking jumped
   public static native boolean didARjump();
 
-  public static String getEvent(Resources r)
+  public static String getRawEvent() {
+    byte[] event = getEvent();
+    return event == null ? "" : new String(event, StandardCharsets.UTF_8);
+  }
+
+  public static String getEvent(Resources r) {
+    return localizeEvent(getRawEvent(), r);
+  }
+
+  public static String localizeEvent(String rawEvent, Resources r)
   {
-    String event = new String(getEvent());
+    String event = rawEvent == null ? "" : rawEvent;
     event = event.replace("ANALYSE", r.getString(R.string.event_analyse));
     event = event.replace("FEW_FEATURES", r.getString(R.string.event_features));
     event = event.replace("CONVERT", r.getString(R.string.event_convert));

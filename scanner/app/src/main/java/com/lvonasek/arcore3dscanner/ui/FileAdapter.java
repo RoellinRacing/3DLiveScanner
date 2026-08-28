@@ -10,7 +10,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Build;
 import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -22,11 +21,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.core.content.FileProvider;
-import com.lvonasek.arcore3dscanner.BuildConfig;
-
-
 import com.lvonasek.arcore3dscanner.R;
+import com.lvonasek.arcore3dscanner.main.EngineeringExport;
 import com.lvonasek.arcore3dscanner.main.Exporter;
 import com.lvonasek.arcore3dscanner.main.Main;
 import com.lvonasek.arcore3dscanner.sketchfab.OAuth;
@@ -35,7 +31,6 @@ import com.lvonasek.utils.GestureDetector;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -424,17 +419,29 @@ class FileAdapter extends BaseAdapter
     String key = (String)getItem(mSelected.get(0));
     if (key.length() <= 4) {
       Toast.makeText(mContext, R.string.invalid_name, Toast.LENGTH_LONG).show();
-    } else if ((key.endsWith(Exporter.EXT_DATASET)) || (key.endsWith(Exporter.EXT_PLY))) {
+    } else if (key.endsWith(Exporter.EXT_DATASET) || key.endsWith(Exporter.EXT_PLY)) {
       mContext.showProgress();
       new Thread(() -> {
-        final String zip = Exporter.compressModel(new File(getPath(), key));
-        mContext.runOnUiThread(() -> {
-          Intent intent = new Intent(Intent.ACTION_SEND);
-          intent.setType("application/zip");
-          intent.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", new File(zip)));
-          mContext.startActivity(Intent.createChooser(intent, mContext.getString(R.string.share_via)));
-        });
-      }).start();
+        try {
+          File selected = new File(getPath(), key);
+          EngineeringExport.Artifact artifact;
+          if (key.endsWith(Exporter.EXT_DATASET)) {
+            artifact = EngineeringExport.packageRawScan(mContext, selected, key);
+          } else {
+            artifact = EngineeringExport.existingFile(
+                AbstractActivity.getModel(selected), "application/octet-stream");
+          }
+          mContext.runOnUiThread(() -> {
+            mContext.startActivity(EngineeringExport.createShareIntent(mContext, artifact));
+            mContext.refreshUI();
+          });
+        } catch (Exception error) {
+          mContext.runOnUiThread(() -> {
+            Toast.makeText(mContext, error.getMessage(), Toast.LENGTH_LONG).show();
+            mContext.refreshUI();
+          });
+        }
+      }, "scan-package-export").start();
     } else {
       AlertDialog.Builder dialog = new AlertDialog.Builder(mContext);
       dialog.setTitle(R.string.share_via);
@@ -442,31 +449,47 @@ class FileAdapter extends BaseAdapter
         mContext.showProgress();
         new Thread(() -> {
           File file = new File(getPath(), key);
-          final String zip = which == 1 ? AbstractActivity.getModel(file).getAbsolutePath() : Exporter.compressModel(file);
-          mContext.runOnUiThread(() -> {
+          try {
+            final String uploadFile;
+            final EngineeringExport.Artifact objPackage;
+            if (which == 0) {
+              uploadFile = null;
+              objPackage = EngineeringExport.packageObj(mContext, file, key);
+            } else if (which == 1) {
+              uploadFile = AbstractActivity.getModel(file).getAbsolutePath();
+              objPackage = null;
+            } else {
+              uploadFile = Exporter.compressModel(file);
+              objPackage = null;
+            }
+            mContext.runOnUiThread(() -> {
             Intent intent;
             switch (which) {
               case 0: //intent
-                intent = new Intent(Intent.ACTION_SEND);
-                intent.setType("application/zip");
-                intent.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(mContext, BuildConfig.APPLICATION_ID + ".provider", new File(zip)));
-                mContext.startActivity(Intent.createChooser(intent, mContext.getString(R.string.share_via)));
+                mContext.startActivity(
+                    EngineeringExport.createShareIntent(mContext, objPackage));
                 break;
               case 1: //online
                 intent = new Intent(mContext, Uploader.class);
-                intent.putExtra(AbstractActivity.FILE_KEY, zip);
+                intent.putExtra(AbstractActivity.FILE_KEY, uploadFile);
                 intent.putExtra(AbstractActivity.URL_KEY, "https://anyconv.com/mesh-converter/");
                 mContext.startActivity(intent);
                 break;
               case 2: //sketchfab
                 intent = new Intent(mContext, OAuth.class);
-                intent.putExtra(AbstractActivity.FILE_KEY, zip);
+                intent.putExtra(AbstractActivity.FILE_KEY, uploadFile);
                 mContext.startActivity(intent);
                 break;
             }
             mContext.refreshUI();
-          });
-        }).start();
+            });
+          } catch (Exception error) {
+            mContext.runOnUiThread(() -> {
+              Toast.makeText(mContext, error.getMessage(), Toast.LENGTH_LONG).show();
+              mContext.refreshUI();
+            });
+          }
+        }, "model-share-export").start();
       });
       AlertDialog d = dialog.create();
       d.getWindow().setBackgroundDrawable(mContext.getDrawable(R.drawable.background_dialog));

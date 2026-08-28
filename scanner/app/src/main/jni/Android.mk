@@ -28,6 +28,7 @@ LOCAL_SRC_FILES := ../../../../../common/arcore/arcore.cc \
                    ../../../../../common/editor/effector.cc \
                    ../../../../../common/editor/rasterizer.cc \
                    ../../../../../common/editor/selector.cc \
+                   ../../../../../common/exporter/cad_export.cc \
                    ../../../../../common/exporter/csvposes.cc \
                    ../../../../../common/exporter/exporter.cc \
                    ../../../../../common/exporter/floorpln.cc \

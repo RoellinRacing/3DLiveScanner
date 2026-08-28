@@ -1,17 +1,21 @@
 package com.lvonasek.arcore3dscanner.ui;
 
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
+import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 
 import com.lvonasek.arcore3dscanner.R;
+import com.lvonasek.arcore3dscanner.main.DeviceCapabilities;
+import com.lvonasek.utils.Compatibility;
 
 public class Settings extends PreferenceActivity {
   @Override
@@ -33,9 +37,7 @@ public class Settings extends PreferenceActivity {
     super.onResume();
     setStyle(getWindow());
 
-    //set depth sensor settings
-    ((CheckBoxPreference)findPreference(getString(R.string.pref_depth))).setChecked(true);
-    findPreference(getString(R.string.pref_depth)).setEnabled(true);
+    updateDepthPreference();
 
     //update items
     keepUpdated((ListPreference) findPreference(getString(R.string.pref_resolution)));
@@ -46,6 +48,40 @@ public class Settings extends PreferenceActivity {
     findPreference("src_parameters").setOnPreferenceClickListener(fixBackground);
     findPreference("src_postprocess").setOnPreferenceClickListener(fixBackground);
     findPreference("src_visualisations").setOnPreferenceClickListener(fixBackground);
+  }
+
+  private void updateDepthPreference() {
+    String key = getString(R.string.pref_depth);
+    CheckBoxPreference depth = (CheckBoxPreference) findPreference(key);
+    if (depth == null) return;
+
+    boolean huaweiAvailable = Compatibility.isHuaweiArEngineAvailable(this);
+    boolean huaweiHardwareDepth = huaweiAvailable
+        && Compatibility.isHuaweiHardwareDepthSupported(this);
+    boolean useHuawei = Compatibility.shouldUseHuawei(this);
+    boolean hardwareDepth;
+    boolean computedDepth = false;
+    if (useHuawei) {
+      hardwareDepth = huaweiHardwareDepth;
+    } else {
+      DeviceCapabilities.ArCoreInfo arCore = DeviceCapabilities.probeArCore(this);
+      hardwareDepth = arCore.hardwareDepthCameraConfig;
+      computedDepth = arCore.automaticDepth || arCore.rawDepth;
+    }
+
+    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+    if (!preferences.contains(key)) depth.setChecked(hardwareDepth);
+    if (!hardwareDepth) depth.setChecked(false);
+    depth.setEnabled(hardwareDepth);
+    if (hardwareDepth) {
+      depth.setTitle(R.string.depth_hardware_title);
+      depth.setSummary(R.string.depth_hardware_summary);
+    } else {
+      depth.setTitle(R.string.depth_hardware_unavailable_title);
+      depth.setSummary(computedDepth
+          ? R.string.depth_computed_summary
+          : R.string.depth_no_depth_summary);
+    }
   }
 
   private void keepUpdated(ListPreference pref) {

@@ -1,45 +1,143 @@
 #include <arcore/arcore.h>
+#include <cstring>
 #include <mutex>
 #include "service.h"
 
 namespace oc {
 
+    namespace {
+
+        bool HasActiveDepthSensor(ArSession* session) {
+            if (!session) {
+                return false;
+            }
+
+            ArCameraConfig* cameraConfig = nullptr;
+            ArCameraConfig_create(session, &cameraConfig);
+            if (!cameraConfig) {
+                return false;
+            }
+
+            ArSession_getCameraConfig(session, cameraConfig);
+            uint32_t usage = 0;
+            ArCameraConfig_getDepthSensorUsage(session, cameraConfig, &usage);
+            ArCameraConfig_destroy(cameraConfig);
+            return (usage & AR_CAMERA_CONFIG_DEPTH_SENSOR_USAGE_REQUIRE_AND_USE) != 0;
+        }
+
+        bool SelectActiveDepthCamera(ArSession* session) {
+            if (!session) return false;
+
+            ArCameraConfigFilter* filter = nullptr;
+            ArCameraConfigList* list = nullptr;
+            ArCameraConfig* config = nullptr;
+            ArCameraConfigFilter_create(session, &filter);
+            ArCameraConfigList_create(session, &list);
+            ArCameraConfig_create(session, &config);
+            if (!filter || !list || !config) {
+                if (config) ArCameraConfig_destroy(config);
+                if (list) ArCameraConfigList_destroy(list);
+                if (filter) ArCameraConfigFilter_destroy(filter);
+                return false;
+            }
+
+            ArCameraConfigFilter_setDepthSensorUsage(
+                session, filter, AR_CAMERA_CONFIG_DEPTH_SENSOR_USAGE_REQUIRE_AND_USE);
+            ArCameraConfigFilter_setFacingDirection(
+                session, filter, AR_CAMERA_CONFIG_FACING_DIRECTION_BACK);
+            ArSession_getSupportedCameraConfigsWithFilter(session, filter, list);
+            int32_t count = 0;
+            ArCameraConfigList_getSize(session, list, &count);
+            bool selected = false;
+            if (count > 0) {
+                ArCameraConfigList_getItem(session, list, 0, config);
+                selected = ArSession_setCameraConfig(session, config) == AR_SUCCESS;
+            }
+
+            ArCameraConfig_destroy(config);
+            ArCameraConfigList_destroy(list);
+            ArCameraConfigFilter_destroy(filter);
+            return selected;
+        }
+
+        uint16_t ReadDepthPixel(const uint8_t* data, int32_t rowStride,
+                                int32_t pixelStride, int x, int y) {
+            uint16_t value = 0;
+            std::memcpy(&value, data + y * rowStride + x * pixelStride,
+                        sizeof(value));
+            return value;
+        }
+
+        uint8_t ReadConfidencePixel(const uint8_t* data, int32_t rowStride,
+                                    int32_t pixelStride, int x, int y) {
+            return data[y * rowStride + x * pixelStride];
+        }
+
+    }
+
     ARCore::ARCore(void *env, void *context, bool faceMode, bool depthCamera) {
+        useDepth = false;
         useDepthRaw = false;
+        has_depth_sensor = false;
 #ifndef ARCORE_BACKPORT
         if (env && context) {
+            ArStatus sessionStatus = AR_ERROR_FATAL;
             if (faceMode) {
                 ArSessionFeature features[2] = {AR_SESSION_FEATURE_FRONT_CAMERA, AR_SESSION_FEATURE_END_OF_LIST};
-                ArSession_createWithFeatures(env, context, features, &ar_session_);
-            } else if (!depthCamera) {
-                ArSessionFeature features[2] = {AR_SESSION_FEATURE_DO_NOT_USE_ACTIVE_DEPTH_SENSOR, AR_SESSION_FEATURE_END_OF_LIST};
-                ArSession_createWithFeatures(env, context, features, &ar_session_);
+                sessionStatus = ArSession_createWithFeatures(env, context, features, &ar_session_);
             } else {
-                ArSession_create(env, context, &ar_session_);
+                sessionStatus = ArSession_create(env, context, &ar_session_);
             }
 
-            ArConfig *ar_config = nullptr;
-            ArConfig_create(ar_session_, &ar_config);
-            ArConfig_setFocusMode(ar_session_, ar_config, AR_FOCUS_MODE_FIXED);
-            ArConfig_setPlaneFindingMode(ar_session_, ar_config, AR_PLANE_FINDING_MODE_DISABLED);
-            if (faceMode)
-                ArConfig_setAugmentedFaceMode(ar_session_, ar_config, AR_AUGMENTED_FACE_MODE_MESH3D);
-            else {
-                useDepthRaw = true;
-                if (depthCamera) {
-                    ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_RAW_DEPTH_ONLY);
+            if ((sessionStatus == AR_SUCCESS) && ar_session_) {
+                const bool selectedHardwareDepth =
+                    !faceMode && depthCamera && SelectActiveDepthCamera(ar_session_);
+                ArConfig *ar_config = nullptr;
+                ArConfig_create(ar_session_, &ar_config);
+                ArConfig_setFocusMode(ar_session_, ar_config, AR_FOCUS_MODE_AUTO);
+                ArConfig_setPlaneFindingMode(ar_session_, ar_config, AR_PLANE_FINDING_MODE_DISABLED);
+                if (faceMode) {
+                    ArConfig_setAugmentedFaceMode(ar_session_, ar_config, AR_AUGMENTED_FACE_MODE_MESH3D);
                 } else {
-                    ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_ALWAYS_ENABLED);
+                    int32_t rawDepthSupported = 0;
+                    int32_t automaticDepthSupported = 0;
+                    ArSession_isDepthModeSupported(ar_session_, AR_DEPTH_MODE_RAW_DEPTH_ONLY,
+                                                   &rawDepthSupported);
+                    ArSession_isDepthModeSupported(ar_session_, AR_DEPTH_MODE_AUTOMATIC,
+                                                   &automaticDepthSupported);
+
+                    if (selectedHardwareDepth && rawDepthSupported) {
+                        ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_RAW_DEPTH_ONLY);
+                        useDepth = true;
+                        useDepthRaw = true;
+                    } else if (rawDepthSupported) {
+                        ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_RAW_DEPTH_ONLY);
+                        useDepth = true;
+                        useDepthRaw = true;
+                    } else if (automaticDepthSupported) {
+                        ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_AUTOMATIC);
+                        useDepth = true;
+                        useDepthRaw = false;
+                    }
+                }
+
+                ArConfig_setUpdateMode(ar_session_, ar_config, AR_UPDATE_MODE_BLOCKING);
+                ArStatus configureStatus = ArSession_configure(ar_session_, ar_config);
+                if ((configureStatus != AR_SUCCESS) && useDepth) {
+                    useDepth = false;
+                    useDepthRaw = false;
+                    ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_DISABLED);
+                    configureStatus = ArSession_configure(ar_session_, ar_config);
+                }
+                ArConfig_destroy(ar_config);
+
+                if (configureStatus == AR_SUCCESS) {
+                    ArFrame_create(ar_session_, &ar_frame_);
+                    session_ready_ = ar_frame_ != nullptr;
+                    has_depth_sensor = useDepth && selectedHardwareDepth &&
+                                       HasActiveDepthSensor(ar_session_);
                 }
             }
-            ArConfig_setUpdateMode(ar_session_, ar_config, AR_UPDATE_MODE_BLOCKING);
-            ArSession_configure(ar_session_, ar_config);
-            ArConfig_destroy(ar_config);
-            ArFrame_create(ar_session_, &ar_frame_);
-
-            int out_is_supported = 0;
-            ArSession_isDepthModeSupported(ar_session_, AR_DEPTH_MODE_ALWAYS_ENABLED, &out_is_supported);
-            useDepth = (out_is_supported != 0) || depthCamera;
         } else
 #endif
         {
@@ -49,7 +147,6 @@ namespace oc {
 
         ar_zero_.second = 0;
         has_coordinate_system_ = false;
-        has_depth_sensor = depthCamera;
         lastDepthTimestamp = 0;
         offset = 0;
         resolution = 0;
@@ -57,8 +154,14 @@ namespace oc {
     }
 
     ARCore::~ARCore() {
-        ArSession_destroy(ar_session_);
-        ArFrame_destroy(ar_frame_);
+        if (ar_frame_) {
+            ArFrame_destroy(ar_frame_);
+            ar_frame_ = nullptr;
+        }
+        if (ar_session_) {
+            ArSession_destroy(ar_session_);
+            ar_session_ = nullptr;
+        }
     }
 
     void ARCore::Clear(bool detach) {
@@ -76,11 +179,13 @@ namespace oc {
     }
 
     void ARCore::OnPause() {
-        ArSession_pause(ar_session_);
+        if (session_ready_)
+            ArSession_pause(ar_session_);
     }
 
     void ARCore::OnResume() {
-        ArSession_resume(ar_session_);
+        if (!session_ready_ || (ArSession_resume(ar_session_) != AR_SUCCESS))
+            return;
         camera.InitializeGlContent();
         texture_initialized_ = false;
     }
@@ -88,16 +193,30 @@ namespace oc {
     void ARCore::OnDisplayGeometryChanged(int display_rotation, int width, int height) {
         viewportWidth = width;
         viewportHeight = height;
-        ArSession_setDisplayGeometry(ar_session_, display_rotation, width, height);
+        if (session_ready_)
+            ArSession_setDisplayGeometry(ar_session_, display_rotation, width, height);
     }
 
     void ARCore::Configure(void *session, void *frame) {
         ar_session_ = static_cast<ArSession *>(session);
         ar_frame_ = static_cast<ArFrame *>(frame);
+        session_ready_ = (ar_session_ != nullptr) && (ar_frame_ != nullptr);
 
-        int out_is_supported = 0;
-        ArSession_isDepthModeSupported(ar_session_, AR_DEPTH_MODE_AUTOMATIC, &out_is_supported);
-        useDepth = (out_is_supported != 0) || useDepth;
+        if (session_ready_) {
+            int32_t rawDepthSupported = 0;
+            int32_t automaticDepthSupported = 0;
+            ArSession_isDepthModeSupported(ar_session_, AR_DEPTH_MODE_RAW_DEPTH_ONLY,
+                                           &rawDepthSupported);
+            ArSession_isDepthModeSupported(ar_session_, AR_DEPTH_MODE_AUTOMATIC,
+                                           &automaticDepthSupported);
+            useDepth = useDepth && (rawDepthSupported || automaticDepthSupported);
+            useDepthRaw = useDepth && rawDepthSupported;
+            has_depth_sensor = useDepth && HasActiveDepthSensor(ar_session_);
+        } else {
+            useDepth = false;
+            useDepthRaw = false;
+            has_depth_sensor = false;
+        }
     }
 
     float ARCore::CountFrameError() {
@@ -141,6 +260,8 @@ namespace oc {
     }
 
     bool ARCore::Process(bool update) {
+        if (!session_ready_)
+            return false;
         if (update) {
             if (!texture_initialized_) {
                 ArSession_setCameraTextureName(ar_session_, camera.GetTextureName());
@@ -254,7 +375,7 @@ namespace oc {
 
     Image* ARCore::GetDepthMap(bool confidence, bool increasing, int s) {
 
-        if (useDepth) {
+        if (useDepth && session_ready_) {
             ArImage* image = 0;
             int result = 0;
             if (useDepthRaw) {
@@ -265,46 +386,74 @@ namespace oc {
 
             if (result == AR_SUCCESS) {
 
-                uint8_t* confidenceData;
+                const uint8_t* confidenceData = nullptr;
                 ArImage* confidenceImage = 0;
                 bool hasConfidence = false;
+                int32_t confidenceWidth = 0, confidenceHeight = 0;
+                int32_t confidenceRowStride = 0, confidencePixelStride = 0;
                 if (useDepthRaw) {
-                    result = ArFrame_acquireRawDepthConfidenceImage(ar_session_, ar_frame_, &confidenceImage);;
+                    result = ArFrame_acquireRawDepthConfidenceImage(ar_session_, ar_frame_, &confidenceImage);
                     if (result == AR_SUCCESS) {
-                        int32_t dataLength;
-                        ArImage_getPlaneData(ar_session_, confidenceImage, 0, (const uint8_t**)&confidenceData, &dataLength);
-                        hasConfidence = true;
+                        int32_t confidenceDataLength;
+                        ArImage_getPlaneData(ar_session_, confidenceImage, 0, &confidenceData,
+                                             &confidenceDataLength);
+                        ArImage_getWidth(ar_session_, confidenceImage, &confidenceWidth);
+                        ArImage_getHeight(ar_session_, confidenceImage, &confidenceHeight);
+                        ArImage_getPlaneRowStride(ar_session_, confidenceImage, 0,
+                                                  &confidenceRowStride);
+                        ArImage_getPlanePixelStride(ar_session_, confidenceImage, 0,
+                                                    &confidencePixelStride);
+                        hasConfidence = confidenceData && (confidenceDataLength > 0) &&
+                                        (confidenceRowStride > 0) && (confidencePixelStride > 0);
                     }
                 }
 
                 //get depth data
-                uint16_t* imgData;
+                const uint8_t* imgData = nullptr;
                 int32_t dataLength;
-                int32_t depthWidth, depthHeight, stride;
-                ArImage_getPlaneRowStride(ar_session_, image, 0, &stride);
-                ArImage_getPlaneData(ar_session_, image, 0, (const uint8_t**)&imgData, &dataLength);
+                int32_t depthWidth, depthHeight, rowStride, pixelStride;
+                ArImage_getPlaneRowStride(ar_session_, image, 0, &rowStride);
+                ArImage_getPlanePixelStride(ar_session_, image, 0, &pixelStride);
+                ArImage_getPlaneData(ar_session_, image, 0, &imgData, &dataLength);
                 ArImage_getWidth(ar_session_, image, &depthWidth);
                 ArImage_getHeight(ar_session_, image, &depthHeight);
 
-                if (depthWidth > 240) s *= depthWidth / 240;
-                depthWidth /= s;
-                depthHeight /= s;
-                Image* output = new Image(depthWidth, depthHeight);
-                for (int y = 0; y < depthHeight; y++) {
-                    for (int x = 0; x < depthWidth; x++) {
-                        int depth = static_cast<int>((imgData[s * y * stride / 2 + s * x] & 0xFFFF) * 0.001 * 255);
+                if (!imgData || (dataLength <= 0) || (rowStride <= 0) ||
+                    (pixelStride < static_cast<int32_t>(sizeof(uint16_t)))) {
+                    if (confidenceImage)
+                        ArImage_release(confidenceImage);
+                    ArImage_release(image);
+                    return nullptr;
+                }
+
+                hasConfidence = hasConfidence && (confidenceWidth == depthWidth) &&
+                                (confidenceHeight == depthHeight);
+                int sampleStep = s > 0 ? s : 1;
+                if (depthWidth > 240)
+                    sampleStep *= glm::max(1, depthWidth / 240);
+                const int outputWidth = glm::max(1, depthWidth / sampleStep);
+                const int outputHeight = glm::max(1, depthHeight / sampleStep);
+                Image* output = new Image(outputWidth, outputHeight);
+                for (int y = 0; y < outputHeight; y++) {
+                    for (int x = 0; x < outputWidth; x++) {
+                        const int sourceX = sampleStep * x;
+                        const int sourceY = sampleStep * y;
+                        int depth = static_cast<int>(ReadDepthPixel(imgData, rowStride, pixelStride,
+                                                                    sourceX, sourceY) * 0.001 * 255);
                         if (!increasing && depth > 0) depth = 768 - depth;
-                        output->GetData()[(y * depthWidth + x) * 4 + 0] = camera.Convert(depth, 0);
-                        output->GetData()[(y * depthWidth + x) * 4 + 1] = camera.Convert(depth, 1);
-                        output->GetData()[(y * depthWidth + x) * 4 + 2] = camera.Convert(depth, 2);
-                        output->GetData()[(y * depthWidth + x) * 4 + 3] = 255;
+                        output->GetData()[(y * outputWidth + x) * 4 + 0] = camera.Convert(depth, 0);
+                        output->GetData()[(y * outputWidth + x) * 4 + 1] = camera.Convert(depth, 1);
+                        output->GetData()[(y * outputWidth + x) * 4 + 2] = camera.Convert(depth, 2);
+                        output->GetData()[(y * outputWidth + x) * 4 + 3] = 255;
                         if (confidence && hasConfidence) {
-                            output->GetData()[(y * depthWidth + x) * 4 + 3] = 128 + confidenceData[s * y * depthWidth + s * x] / 2;
+                            output->GetData()[(y * outputWidth + x) * 4 + 3] =
+                                128 + ReadConfidencePixel(confidenceData, confidenceRowStride,
+                                                          confidencePixelStride, sourceX, sourceY) / 2;
                         }
                     }
                 }
 
-                if (hasConfidence) {
+                if (confidenceImage) {
                     ArImage_release(confidenceImage);
                 }
                 ArImage_release(image);
@@ -561,6 +710,10 @@ namespace oc {
     }
 
     void ARCore::UpdateFeaturePoints() {
+        if (!session_ready_) {
+            points.clear();
+            return;
+        }
         if (!UpdateAnchor()) {
             points.clear();
             return;
@@ -585,52 +738,83 @@ namespace oc {
         }
 
         if (useDepth) {
-            points.clear();
             camera.InitARCore(ar_session_, ar_frame_);
-            if (number_of_points > 0) {
 
                 ArImage* image = 0;
                 int result = 0;
                 if (useDepthRaw) {
-                    result = ArFrame_acquireRawDepthImage(ar_session_, ar_frame_, &image);
+                    result = ArFrame_acquireRawDepthImage16Bits(ar_session_, ar_frame_, &image);
                 } else {
-                    result = ArFrame_acquireDepthImage(ar_session_, ar_frame_, &image);
+                    result = ArFrame_acquireDepthImage16Bits(ar_session_, ar_frame_, &image);
                 }
                 if (result == AR_SUCCESS) {
 
-                    uint8_t* confidenceData;
+                    const uint8_t* confidenceData = nullptr;
                     ArImage* confidenceImage = 0;
                     bool hasConfidence = false;
+                    int32_t confidenceWidth = 0, confidenceHeight = 0;
+                    int32_t confidenceRowStride = 0, confidencePixelStride = 0;
                     if (useDepthRaw) {
-                        result = ArFrame_acquireRawDepthConfidenceImage(ar_session_, ar_frame_, &confidenceImage);;
+                        result = ArFrame_acquireRawDepthConfidenceImage(ar_session_, ar_frame_, &confidenceImage);
                         if (result == AR_SUCCESS) {
-                            int32_t dataLength;
-                            ArImage_getPlaneData(ar_session_, confidenceImage, 0, (const uint8_t**)&confidenceData, &dataLength);
-                            hasConfidence = true;
+                            int32_t confidenceDataLength;
+                            ArImage_getPlaneData(ar_session_, confidenceImage, 0, &confidenceData,
+                                                 &confidenceDataLength);
+                            ArImage_getWidth(ar_session_, confidenceImage, &confidenceWidth);
+                            ArImage_getHeight(ar_session_, confidenceImage, &confidenceHeight);
+                            ArImage_getPlaneRowStride(ar_session_, confidenceImage, 0,
+                                                      &confidenceRowStride);
+                            ArImage_getPlanePixelStride(ar_session_, confidenceImage, 0,
+                                                        &confidencePixelStride);
+                            hasConfidence = confidenceData && (confidenceDataLength > 0) &&
+                                            (confidenceRowStride > 0) &&
+                                            (confidencePixelStride > 0);
                         }
                     }
 
                     //get depth data
-                    uint16_t* imgData;
+                    const uint8_t* imgData = nullptr;
                     int64_t timestamp;
                     int32_t dataLength;
-                    int32_t depthWidth, depthHeight, stride;
-                    ArImage_getPlaneRowStride(ar_session_, image, 0, &stride);
-                    ArImage_getPlaneData(ar_session_, image, 0, (const uint8_t**)&imgData, &dataLength);
+                    int32_t depthWidth, depthHeight, rowStride, pixelStride;
+                    ArImage_getPlaneRowStride(ar_session_, image, 0, &rowStride);
+                    ArImage_getPlanePixelStride(ar_session_, image, 0, &pixelStride);
+                    ArImage_getPlaneData(ar_session_, image, 0, &imgData, &dataLength);
                     ArImage_getWidth(ar_session_, image, &depthWidth);
                     ArImage_getHeight(ar_session_, image, &depthHeight);
                     ArImage_getTimestamp(ar_session_, image, &timestamp);
 
+                    hasConfidence = hasConfidence && (confidenceWidth == depthWidth) &&
+                                    (confidenceHeight == depthHeight);
+
                     ArImage* image2 = 0;
-                    uint16_t* imgData2;
+                    const uint8_t* imgData2 = nullptr;
+                    int32_t secondaryWidth = 0, secondaryHeight = 0;
+                    int32_t secondaryRowStride = 0, secondaryPixelStride = 0;
                     bool hasSecondary = false;
                     if (useDepthRaw && !has_depth_sensor) {
-                        result = ArFrame_acquireDepthImage(ar_session_, ar_frame_, &image2);
+                        result = ArFrame_acquireDepthImage16Bits(ar_session_, ar_frame_, &image2);
                         if (result == AR_SUCCESS) {
-                            hasSecondary = true;
-                            ArImage_getPlaneData(ar_session_, image2, 0, (const uint8_t**)&imgData2, &dataLength);
+                            int32_t secondaryDataLength;
+                            ArImage_getPlaneData(ar_session_, image2, 0, &imgData2,
+                                                 &secondaryDataLength);
+                            ArImage_getWidth(ar_session_, image2, &secondaryWidth);
+                            ArImage_getHeight(ar_session_, image2, &secondaryHeight);
+                            ArImage_getPlaneRowStride(ar_session_, image2, 0,
+                                                      &secondaryRowStride);
+                            ArImage_getPlanePixelStride(ar_session_, image2, 0,
+                                                        &secondaryPixelStride);
+                            hasSecondary = imgData2 && (secondaryDataLength > 0) &&
+                                           (secondaryWidth == depthWidth) &&
+                                           (secondaryHeight == depthHeight) &&
+                                           (secondaryRowStride > 0) &&
+                                           (secondaryPixelStride >= static_cast<int32_t>(sizeof(uint16_t)));
                         }
                     }
+
+                    const bool validDepth = imgData && (dataLength > 0) &&
+                                            (rowStride > 0) &&
+                                            (pixelStride >= static_cast<int32_t>(sizeof(uint16_t)));
 
                     //convert depthmap to pointcloud
                     int minConfidence = has_depth_sensor ? 32 : 128;
@@ -642,13 +826,18 @@ namespace oc {
                     std::map<std::pair<int, int>, double> edges2d;
                     glm::vec3 cam = glm::inverse(view_mat)[3];
                     glm::dmat4 screen2world = glm::inverse(projection_mat * view_mat);
-                    if (!has_depth_sensor || (lastDepthTimestamp != timestamp)) {
+                    if (validDepth && (lastDepthTimestamp != timestamp)) {
+                        // Replace the feature-point fallback only when this frame
+                        // contains a fresh, readable depth image.
+                        points.clear();
 
                         float maxY = INT_MIN;
                         std::map<int, float> distances;
                         std::map<std::pair<int, int>, float> distancesLocal;
                         float s = 1;
-                        int m = has_depth_sensor ? (depthWidth - depthHeight) / 2 : 0;
+                        int m = has_depth_sensor
+                                ? glm::max(0, (depthWidth - depthHeight) / 2)
+                                : 0;
                         if (depthWidth > 240) s = depthWidth / 240.0f;
                         for (float fy = 0; fy < depthHeight; fy += s) {
                             for (float fx = m; fx < depthWidth - m; fx += s) {
@@ -658,43 +847,54 @@ namespace oc {
                                     continue;
 
                                 //check point validity
-                                double depth = (imgData[y * stride / 2 + x] & 0xFFFF) * 0.001f;
+                                double depth = ReadDepthPixel(imgData, rowStride, pixelStride,
+                                                              x, y) * 0.001f;
                                 if (hasConfidence) {
-                                    if (confidenceData[y * depthWidth + x] <= minConfidence) {
+                                    if (ReadConfidencePixel(confidenceData, confidenceRowStride,
+                                                            confidencePixelStride, x, y) <= minConfidence) {
                                         if (hasSecondary) {
 
                                             //get nearest point with high confidence in 4 directions
                                             bool left = false, right = false, up = false, down = false;
                                             glm::vec3 c, l, r, u, d;
                                             for (int tx = x; tx >= 0; tx--) {
-                                                if (confidenceData[y * depthWidth + tx] > minConfidence) {
-                                                    l = glm::vec3(tx, y, (imgData[y * stride / 2 + tx] & 0xFFFF) * 0.001f);
+                                                if (ReadConfidencePixel(confidenceData, confidenceRowStride,
+                                                                        confidencePixelStride, tx, y) > minConfidence) {
+                                                    l = glm::vec3(tx, y, ReadDepthPixel(imgData, rowStride,
+                                                                                       pixelStride, tx, y) * 0.001f);
                                                     left = true;
                                                     break;
                                                 }
                                             }
                                             for (int tx = x; tx < depthWidth; tx++) {
-                                                if (confidenceData[y * depthWidth + tx] > minConfidence) {
-                                                    r = glm::vec3(tx, y, (imgData[y * stride / 2 + tx] & 0xFFFF) * 0.001f);
+                                                if (ReadConfidencePixel(confidenceData, confidenceRowStride,
+                                                                        confidencePixelStride, tx, y) > minConfidence) {
+                                                    r = glm::vec3(tx, y, ReadDepthPixel(imgData, rowStride,
+                                                                                       pixelStride, tx, y) * 0.001f);
                                                     right = true;
                                                     break;
                                                 }
                                             }
                                             for (int ty = y; ty >= 0; ty--) {
-                                                if (confidenceData[ty * depthWidth + x] > minConfidence) {
-                                                    u = glm::vec3(x, ty, (imgData[ty * stride / 2 + x] & 0xFFFF) * 0.001f);
+                                                if (ReadConfidencePixel(confidenceData, confidenceRowStride,
+                                                                        confidencePixelStride, x, ty) > minConfidence) {
+                                                    u = glm::vec3(x, ty, ReadDepthPixel(imgData, rowStride,
+                                                                                       pixelStride, x, ty) * 0.001f);
                                                     up = true;
                                                     break;
                                                 }
                                             }
                                             for (int ty = y; ty < depthHeight; ty++) {
-                                                if (confidenceData[ty * depthWidth + x] > minConfidence) {
-                                                    d = glm::vec3(x, ty, (imgData[ty * stride / 2 + x] & 0xFFFF) * 0.001f);
+                                                if (ReadConfidencePixel(confidenceData, confidenceRowStride,
+                                                                        confidencePixelStride, x, ty) > minConfidence) {
+                                                    d = glm::vec3(x, ty, ReadDepthPixel(imgData, rowStride,
+                                                                                       pixelStride, x, ty) * 0.001f);
                                                     down = true;
                                                     break;
                                                 }
                                             }
-                                            c = glm::vec3(x, y, (imgData2[y * stride / 2 + x] & 0xFFFF) * 0.001f);
+                                            c = glm::vec3(x, y, ReadDepthPixel(imgData2, secondaryRowStride,
+                                                                               secondaryPixelStride, x, y) * 0.001f);
 
                                             //"closed" holes filling
                                             bool horizontal = false, vertical = false;
@@ -705,7 +905,7 @@ namespace oc {
                                                 }
                                             }
                                             if (up && down) {
-                                                glm::vec3 v = glm::lerp(u, d, (c.x - u.x) / (d.x - u.x));
+                                                glm::vec3 v = glm::lerp(u, d, (c.y - u.y) / (d.y - u.y));
                                                 if (fabs(v.z - c.z) < maxErrorHoles) {
                                                     vertical = true;
                                                 }
@@ -733,7 +933,8 @@ namespace oc {
 
                                 //filter depth noise
                                 if (hasSecondary) {
-                                    double filtered = (imgData2[y * stride / 2 + x] & 0xFFFF) * 0.001f;
+                                    double filtered = ReadDepthPixel(imgData2, secondaryRowStride,
+                                                                     secondaryPixelStride, x, y) * 0.001f;
                                     if (fabs(depth - filtered) < maxErrorFilter) {
                                         depth = filtered;
                                     }
@@ -813,16 +1014,16 @@ namespace oc {
                     }
 
                     //cleanup
-                    if (hasConfidence) {
+                    if (confidenceImage) {
                         ArImage_release(confidenceImage);
                     }
-                    if (hasSecondary) {
+                    if (image2) {
                         ArImage_release(image2);
                     }
                     ArImage_release(image);
-                    lastDepthTimestamp = timestamp;
+                    if (validDepth && (lastDepthTimestamp != timestamp))
+                        lastDepthTimestamp = timestamp;
                 }
-            }
         }
         has_coordinate_system_ = true;
     }

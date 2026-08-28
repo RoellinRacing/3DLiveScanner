@@ -42,7 +42,7 @@ jobs:
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
       - name: Install Android toolchain
         run: |
-          sdkmanager 'platforms;android-33' 'build-tools;33.0.1' 'ndk;25.1.8937393'
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;25.1.8937393'
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.1.8937393" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/25.1.8937393" >> "$GITHUB_ENV"
       - name: Compile unit-test sources
@@ -55,7 +55,7 @@ jobs:
       - name: Name APK and checksum
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/3DLiveScanner-Max.apk
-          sha256sum app/build/outputs/apk/debug/3DLiveScanner-Max.apk > app/build/outputs/apk/debug/3DLiveScanner-Max.apk.sha256
+          (cd app/build/outputs/apk/debug && sha256sum 3DLiveScanner-Max.apk > 3DLiveScanner-Max.apk.sha256)
       - name: Upload installable APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

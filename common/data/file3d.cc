@@ -57,7 +57,14 @@ namespace oc {
             vectorSize.push_back(max);
         }
         //write
-        faceCount = extra ? vertexCount / 3 : 0;
+        faceCount = 0;
+        if (extra) {
+            for (const Mesh& mesh : model) {
+                faceCount += mesh.indices.empty()
+                    ? static_cast<unsigned int>(mesh.vertices.size() / 3)
+                    : static_cast<unsigned int>(mesh.indices.size() / 3);
+            }
+        }
         if ((type == PLY) || (type == OBJ)) {
             WriteHeader(model);
             for (unsigned int i = 0; i < model.size(); i++)

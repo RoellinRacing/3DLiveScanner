@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape>
+            <solid android:color="@color/scanner_accent_pressed" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <gradient android:angle="0" android:startColor="@color/scanner_accent" android:endColor="#78F0C5" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+</selector>

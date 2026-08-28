@@ -1,6 +1,8 @@
 package com.lvonasek.utils;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -18,6 +20,15 @@ public class GPS implements LocationListener {
 
     count = stopAfter;
     locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+
+    // Location access can be revoked at any time. Do not call the provider when
+    // neither accepted location permission is currently granted.
+    if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        != PackageManager.PERMISSION_GRANTED
+        && context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+        != PackageManager.PERMISSION_GRANTED) {
+      return;
+    }
 
     try {
       locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 250, 20, this);

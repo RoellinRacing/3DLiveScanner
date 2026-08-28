@@ -3,6 +3,7 @@
 
 #include <jni.h>
 #include <string>
+#include <vector>
 
 #include <editor/effector.h>
 #include <editor/selector.h>
@@ -35,6 +36,8 @@ namespace oc {
         void Optimize(std::string filename);
         bool Save(std::string filename);
         void SaveWithTextures(std::string filename);
+        // 0 = binary STL (mm), 1 = 3MF model XML (mm), 2 = mesh PLY (m).
+        bool ExportEngineering(std::string filename, int format);
         void SetTextureParams(int detail, int res, int count);
         void Texturize(std::string input, std::string output, bool poisson, bool twoPass);
 
@@ -42,6 +45,9 @@ namespace oc {
         bool DidARJump();
         float GetView(int axis);
         float GetDistance(float x1, float y1, float x2, float y2);
+        std::vector<float> PickMeasurementPoint(float x, float y);
+        std::vector<float> ProjectMeasurementPoints(const std::vector<float>& points);
+        bool ApplyUniformScale(float factor, float anchorX, float anchorY, float anchorZ);
         float GetFloorLevel(float x, float y, float z);
         void SetView(float p, float y, float mx, float my, float mz, float o, bool g);
         std::string GetEvent();
@@ -79,6 +85,7 @@ namespace oc {
         float pitch, lastPitch;
         float yaw, lastYaw;
         float lowest;
+        int viewportWidth, viewportHeight;
     };
 }
 
