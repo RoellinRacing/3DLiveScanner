@@ -614,7 +614,11 @@ public class Main extends AbstractActivity implements View.OnClickListener,
       mToggleButton.setImageResource(m3drRunning ? R.drawable.ic_pause : R.drawable.ic_record);
       JNI.onPause();
     } else {
-      System.exit(0);
+      // Nothing native has been bound yet. Android may legitimately pause us
+      // for permission, installer, configuration or system UI transitions;
+      // terminating the whole process here turns those transitions into an
+      // apparent startup crash.
+      Log.d(TAG, "Paused before AR/viewer initialization completed");
     }
   }
 

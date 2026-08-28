@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="crash_report_title" tools:ignore="MissingTranslation">Crash report found</string>
+    <string name="crash_report_message" tools:ignore="MissingTranslation">The app saved a local crash report from the previous run. Nothing is sent automatically. Share it for diagnosis, delete it, or keep it for later.</string>
+    <string name="crash_report_share" tools:ignore="MissingTranslation">Share report</string>
+    <string name="crash_report_delete" tools:ignore="MissingTranslation">Delete report</string>
+    <string name="crash_report_share_chooser" tools:ignore="MissingTranslation">Share crash report</string>
+    <string name="crash_report_share_failed" tools:ignore="MissingTranslation">The crash report could not be shared.</string>
+    <string name="crash_report_delete_failed" tools:ignore="MissingTranslation">The crash report could not be deleted.</string>
+</resources>

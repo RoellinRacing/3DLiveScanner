@@ -3,6 +3,7 @@ package com.lvonasek.arcore3dscanner.ui;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -28,11 +29,14 @@ import android.widget.Toast;
 
 import com.google.ar.core.ArCoreApk;
 import com.lvonasek.arcore3dscanner.R;
+import com.lvonasek.arcore3dscanner.ScannerApplication;
 import com.lvonasek.arcore3dscanner.main.DeviceCapabilities;
 import com.lvonasek.arcore3dscanner.main.Exporter;
 import com.lvonasek.arcore3dscanner.main.Main;
 import com.lvonasek.utils.Compatibility;
 import com.lvonasek.utils.IO;
+
+import androidx.core.content.FileProvider;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -60,6 +64,7 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
   protected void onCreate(Bundle savedInstanceState)
   {
     super.onCreate(savedInstanceState);
+    Initializator.rememberFileIntent(getIntent());
     setContentView(R.layout.activity_files);
 
     boolean showPro = Compatibility.isPlayStoreSupported(this) && !isProVersion(this);
@@ -94,6 +99,14 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
       mAdapter.forwardTouch(event);
       return false;
     });
+    showPendingCrashReport();
+  }
+
+  @Override
+  protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+    Initializator.rememberFileIntent(intent);
   }
 
   @Override
@@ -220,12 +233,13 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
       dialog.setView(view);
 
       d = dialog.create();
-      d.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
       d.show();
-
-      if (!Compatibility.isGoogleDepthSupported(this) && !Compatibility.hasToFSensor(this)) {
-        d.findViewById(R.id.lowend_device).setVisibility(View.VISIBLE);
+      if (d.getWindow() != null) {
+        d.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
       }
+
+      // Depth support is probed only when Scan is requested. Some uncertified
+      // OEM ARCore runtimes are not safe to construct during launcher startup.
     }
 
     long time = System.currentTimeMillis();
@@ -265,8 +279,7 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
   protected void setupPermissions() {
     String[] permissions = {
-            Manifest.permission.CAMERA,
-            Manifest.permission.INTERNET
+            Manifest.permission.CAMERA
     };
 
     boolean ok = true;
@@ -292,18 +305,6 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
       mCancel.setOnClickListener(this);
       mCancel.setVisibility(View.GONE);
       allowedToAskForPermissions = false;
-    }
-
-    try {
-      boolean arengine = Compatibility.shouldUseHuawei(this);
-      boolean arcoreReady = Compatibility.isARCoreSessionUsable(this);
-      // A successfully constructed runtime Session needs no catalogue/install
-      // round-trip. Huawei devices using AR Engine must not be sent to ARCore.
-      if (!arengine && !arcoreReady && Compatibility.isARSupported(this))
-        if (ArCoreApk.getInstance().requestInstall(this, true) != ArCoreApk.InstallStatus.INSTALLED)
-          return;
-    } catch (Exception e) {
-      e.printStackTrace();
     }
 
     long timestamp = System.currentTimeMillis();
@@ -393,7 +394,31 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
   private void startScanning()
   {
-    if (!Compatibility.isScanningSessionUsable(this)) {
+    boolean runtimeUsable = false;
+    try {
+      runtimeUsable = Compatibility.isScanningSessionUsable(this);
+    } catch (Throwable error) {
+      Log.e(TAG, "AR runtime probe failed", error);
+    }
+    if (!runtimeUsable) {
+      // Installation/update UI is allowed only after the user explicitly asks
+      // to scan. Creating ARCore/Huawei sessions while the launcher is coming
+      // up caused fragile OEM runtimes to terminate the process before the
+      // project screen could even be shown.
+      try {
+        if (!Compatibility.isHuaweiArEngineAvailable(this)
+            && Compatibility.isARCoreInstallRequired(this)) {
+          if (ArCoreApk.getInstance().requestInstall(this, true)
+              != ArCoreApk.InstallStatus.INSTALLED) {
+            return;
+          }
+          runtimeUsable = Compatibility.isARCoreSessionUsable(this);
+        }
+      } catch (Throwable error) {
+        Log.e(TAG, "Unable to install or update ARCore", error);
+      }
+    }
+    if (!runtimeUsable) {
       showScanningUnavailable();
       return;
     }
@@ -401,8 +426,10 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
     AlertDialog.Builder builder = new AlertDialog.Builder(this);
     builder.setView(R.layout.dialog_scan);
     Dialog dialog = builder.create();
-    dialog.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
     dialog.show();
+    if (dialog.getWindow() != null) {
+      dialog.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
+    }
 
     ArrayList<Drawable> icons = new ArrayList<>();
     ArrayList<String> values = new ArrayList<>();
@@ -479,6 +506,42 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
   private void showDiagnosticsError(Throwable error) {
     Log.e(TAG, "Unable to create or share device diagnostics", error);
     Toast.makeText(this, R.string.diagnostics_failed, Toast.LENGTH_LONG).show();
+  }
+
+  private void showPendingCrashReport() {
+    File report = ScannerApplication.getPendingCrashReport(this);
+    if (report == null) return;
+
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.crash_report_title)
+        .setMessage(R.string.crash_report_message)
+        .setPositiveButton(R.string.crash_report_share,
+            (dialog, which) -> shareCrashReport(report))
+        .setNegativeButton(R.string.crash_report_delete, (dialog, which) -> {
+          if (!ScannerApplication.deletePendingCrashReport(FileManager.this)) {
+            Toast.makeText(FileManager.this, R.string.crash_report_delete_failed,
+                Toast.LENGTH_LONG).show();
+          }
+        })
+        .setNeutralButton(android.R.string.cancel, null)
+        .show();
+  }
+
+  private void shareCrashReport(File report) {
+    try {
+      Uri uri = FileProvider.getUriForFile(
+          this, getPackageName() + ".provider", report);
+      Intent intent = new Intent(Intent.ACTION_SEND);
+      intent.setType("text/plain");
+      intent.putExtra(Intent.EXTRA_STREAM, uri);
+      intent.setClipData(ClipData.newRawUri("crash report", uri));
+      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      startActivity(Intent.createChooser(intent,
+          getString(R.string.crash_report_share_chooser)));
+    } catch (Throwable error) {
+      Log.e(TAG, "Unable to share crash report", error);
+      Toast.makeText(this, R.string.crash_report_share_failed, Toast.LENGTH_LONG).show();
+    }
   }
 
   private void finishScanning()

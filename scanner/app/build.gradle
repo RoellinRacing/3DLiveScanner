@@ -29,6 +29,15 @@ android {
             path 'src/main/jni/Android.mk'
         }
     }
+
+    // AGP 8.1 aligns uncompressed JNI entries to 4 KB. Extracting compressed
+    // libraries is Android's documented fallback for 16 KB-page devices until
+    // the legacy native dependency stack can move to AGP 8.5.1+/NDK r28+.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true

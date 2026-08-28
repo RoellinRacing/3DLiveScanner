@@ -2,6 +2,7 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="export_cache" path="exports/"/>
     <files-path name="scanner_models_fallback" path="3D Live Scanner/"/>
+    <files-path name="crash_reports" path="crash-reports/"/>
     <external-files-path name="scanner_models" path="Documents/3D Live Scanner/"/>
     <external-files-path name="diagnostics" path="diagnostics/"/>
     <external-cache-path name="diagnostics_cache" path="diagnostics/"/>

@@ -106,8 +106,9 @@ public final class DeviceCapabilities implements SensorEventListener {
   private volatile boolean started;
 
   public DeviceCapabilities(Context context, ArCoreInfo arCoreInfo) {
-    app = context.getApplicationContext();
-    arCore = arCoreInfo;
+    Context application = context.getApplicationContext();
+    app = application == null ? context : application;
+    arCore = arCoreInfo == null ? new ArCoreInfo() : arCoreInfo;
     sensors = (SensorManager) app.getSystemService(Context.SENSOR_SERVICE);
     power = (PowerManager) app.getSystemService(Context.POWER_SERVICE);
     activityManager = (ActivityManager) app.getSystemService(Context.ACTIVITY_SERVICE);
@@ -119,6 +120,11 @@ public final class DeviceCapabilities implements SensorEventListener {
 
   /** Call before the native ARCore session is created. The Session is always closed. */
   public static ArCoreInfo probeArCore(Context context) {
+    if (context == null) {
+      ArCoreInfo result = new ArCoreInfo();
+      result.error = "IllegalArgumentException: context is null";
+      return result;
+    }
     ArCoreInfo cached = cachedArCoreInfo;
     if (cached != null) return cached;
     synchronized (DeviceCapabilities.class) {
@@ -210,18 +216,27 @@ public final class DeviceCapabilities implements SensorEventListener {
 
   public synchronized void start() {
     if (started || sensors == null) return;
-    started = true;
-    if (gyro != null) {
-      sensors.registerListener(this, gyro, SensorManager.SENSOR_DELAY_GAME);
-    }
-    if (linearAcceleration != null) {
-      sensors.registerListener(this, linearAcceleration, SensorManager.SENSOR_DELAY_GAME);
+    try {
+      if (gyro != null) {
+        sensors.registerListener(this, gyro, SensorManager.SENSOR_DELAY_GAME);
+      }
+      if (linearAcceleration != null) {
+        sensors.registerListener(this, linearAcceleration, SensorManager.SENSOR_DELAY_GAME);
+      }
+      started = true;
+    } catch (Throwable ignored) {
+      // Scan coaching is optional. A broken vendor sensor implementation must
+      // never take down the AR session or project viewer.
+      started = false;
     }
   }
 
   public synchronized void stop() {
     if (!started || sensors == null) return;
-    sensors.unregisterListener(this);
+    try {
+      sensors.unregisterListener(this);
+    } catch (Throwable ignored) {
+    }
     started = false;
     angularSpeed = 0f;
     linearAccelerationMagnitude = 0f;
@@ -305,7 +320,12 @@ public final class DeviceCapabilities implements SensorEventListener {
 
   public int currentThermalStatus() {
     if (Build.VERSION.SDK_INT >= 29 && power != null) {
-      return power.getCurrentThermalStatus();
+      try {
+        return power.getCurrentThermalStatus();
+      } catch (Throwable ignored) {
+        // Thermal coaching is informational and should remain non-fatal on a
+        // vendor PowerManager implementation that cannot answer this query.
+      }
     }
     return -1;
   }

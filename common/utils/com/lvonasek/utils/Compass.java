@@ -16,18 +16,19 @@ public class Compass implements SensorEventListener
     public Compass(Context c)
     {
         mSensorManager = (SensorManager)c.getSystemService(Context.SENSOR_SERVICE);
-        mSensorCompass = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        mSensorCompass = mSensorManager == null ? null
+                : mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
     }
 
     public void onPause()
     {
-        if (mSensorCompass != null)
+        if (mSensorManager != null && mSensorCompass != null)
             mSensorManager.unregisterListener(this, mSensorCompass);
     }
 
     public void onResume()
     {
-        if (mSensorCompass != null)
+        if (mSensorManager != null && mSensorCompass != null)
             mSensorManager.registerListener(this, mSensorCompass, SensorManager.SENSOR_DELAY_GAME);
     }
 

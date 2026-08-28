@@ -48,6 +48,9 @@ LOCAL_SRC_FILES := ../../../../../common/arcore/arcore.cc \
                    renderer.cc
 
 LOCAL_LDLIBS    := -llog -lGLESv2 -L$(SYSROOT)/usr/lib -lz -landroid -lmediandk
+# Keep the scanner engine loadable on both 4 KB and 16 KB Android kernels.
+# NDK r25 needs these flags explicitly.
+LOCAL_LDFLAGS   += -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384
 LOCAL_DISABLE_FATAL_LINKER_WARNINGS := true
 
 

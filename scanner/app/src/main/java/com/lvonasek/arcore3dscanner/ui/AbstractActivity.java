@@ -227,7 +227,11 @@ public abstract class AbstractActivity extends Activity {
 
   @Override
   protected void onPause() {
-    mCompass.onPause();
+    // onPause can be reached while an Activity is only partially resumed (for
+    // example while Android shows a runtime-permission or AR service dialog).
+    if (mCompass != null) {
+      mCompass.onPause();
+    }
     super.onPause();
   }
 

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="crash_report_title">Absturzbericht gefunden</string>
+    <string name="crash_report_message">Die App hat beim letzten Start einen lokalen Absturzbericht gespeichert. Es wird nichts automatisch versendet. Du kannst ihn zur Analyse teilen, löschen oder für später behalten.</string>
+    <string name="crash_report_share">Bericht teilen</string>
+    <string name="crash_report_delete">Bericht löschen</string>
+    <string name="crash_report_share_chooser">Absturzbericht teilen</string>
+    <string name="crash_report_share_failed">Der Absturzbericht konnte nicht geteilt werden.</string>
+    <string name="crash_report_delete_failed">Der Absturzbericht konnte nicht gelöscht werden.</string>
+</resources>

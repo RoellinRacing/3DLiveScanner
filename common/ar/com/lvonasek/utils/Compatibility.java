@@ -46,7 +46,7 @@ public class Compatibility {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
         return false;
@@ -59,6 +59,7 @@ public class Compatibility {
     }
 
     public static boolean isARSupported(Context context) {
+        if (context == null) return false;
         ArCoreApk.Availability availability = getArCoreAvailability(context);
         if (availability == ArCoreApk.Availability.SUPPORTED_INSTALLED) {
             // Do not expose scanning merely from the catalogue result. A real,
@@ -80,11 +81,21 @@ public class Compatibility {
 
     /** A scan entry point must use this stricter runtime check. */
     public static boolean isScanningSessionUsable(Context context) {
+        if (context == null) return false;
         return isARCoreSessionUsable(context) || isHuaweiSessionUsable(context);
+    }
+
+    /** Whether ARCore can be installed/updated for this device catalogue entry. */
+    public static boolean isARCoreInstallRequired(Context context) {
+        if (context == null) return false;
+        ArCoreApk.Availability availability = getArCoreAvailability(context);
+        return availability == ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED
+                || availability == ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD;
     }
 
     /** Runtime probe for Huawei AR Engine without starting camera capture. */
     public static boolean isHuaweiSessionUsable(Context context) {
+        if (context == null) return false;
         if (!isHuaweiArEngineAvailable(context)) return false;
         try {
             ARSession session = new ARSession(context);
@@ -114,7 +125,7 @@ public class Compatibility {
                         case INSTALLED:
                             return isARCoreSessionUsable(activity);
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     return false;
                 }
                 return false;
@@ -135,6 +146,7 @@ public class Compatibility {
      * Session never resumes the camera and is closed on every path.
      */
     public static boolean isARCoreSessionUsable(Context context) {
+        if (context == null) return false;
         Session session = null;
         try {
             session = new Session(context);
@@ -147,6 +159,7 @@ public class Compatibility {
     }
 
     private static ArCoreApk.Availability getArCoreAvailability(Context context) {
+        if (context == null) return ArCoreApk.Availability.UNKNOWN_ERROR;
         try {
             ArCoreApk.Availability availability =
                     ArCoreApk.getInstance().checkAvailability(context);
@@ -255,7 +268,7 @@ public class Compatibility {
             config.setEnableItem(ARConfigBase.ENABLE_DEPTH | ARConfigBase.ENABLE_MESH);
             session.configure(config);
             return session.isSupported(config);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
             return false;
         }
@@ -278,6 +291,7 @@ public class Compatibility {
 
     @SuppressWarnings("deprecation")
     private static boolean isPackageInstalled(Context context, String packageName) {
+        if (context == null) return false;
         try {
             return context.getPackageManager()
                     .getApplicationInfo(packageName, 0).enabled;
