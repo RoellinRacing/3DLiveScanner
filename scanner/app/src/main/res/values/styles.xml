@@ -39,6 +39,7 @@
     </style>
 
     <style name="ScannerToolbarText">
+        <item name="android:layout_height">48dp</item>
         <item name="android:textColor">@color/scanner_text</item>
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">sans-serif-medium</item>
