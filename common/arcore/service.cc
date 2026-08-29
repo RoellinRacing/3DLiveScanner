@@ -162,6 +162,13 @@ namespace oc {
         return capabilities;
     }
 
+    DepthTelemetry ARCoreService::GetDepthTelemetry() {
+        if (mode_ < HUAWEI_SFM && google) {
+            return google->GetDepthTelemetry();
+        }
+        return DepthTelemetry();
+    }
+
     std::vector<glm::vec4> ARCoreService::GetPointCloud(float maxDiff) {
         std::vector<glm::vec4> output;
         bool validFrame = !GetActiveAnchors().empty() || IsFaceMode();
@@ -273,6 +280,11 @@ namespace oc {
             huawei->SetResolution(res);
         else
             google->SetResolution(res);
+    }
+
+    void ARCoreService::SetDepthRange(float min_depth, float max_depth) {
+        if (mode_ < HUAWEI_SFM && google)
+            google->SetDepthRange(min_depth, max_depth);
     }
 
     Image *ARCoreService::GetDepthmap() {

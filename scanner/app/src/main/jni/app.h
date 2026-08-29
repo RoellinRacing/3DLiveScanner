@@ -23,6 +23,7 @@ namespace oc {
                                   bool distortion, bool offset, bool flashlight, int mode,
                                   bool clearing, std::string dataset);
         int GetRuntimeCapabilities();
+        std::string GetScanTelemetry();
         void OnSurfaceChanged(int width, int height, bool fullhd);
         bool OnDrawFrame(bool facemode, float compassYaw, int viewmode, bool anchors, bool grid, bool smooth);
         bool OnDrawScan(glm::vec3 pos, bool zoomable);
@@ -88,6 +89,8 @@ namespace oc {
         float yaw, lastYaw;
         float lowest;
         int viewportWidth, viewportHeight;
+        int scanNoise;
+        double scanResolution;
     };
 }
 

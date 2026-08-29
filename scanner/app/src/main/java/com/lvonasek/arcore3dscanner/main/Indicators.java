@@ -125,7 +125,7 @@ public class Indicators implements Runnable {
       if (now - lastTelemetryAt >= 10000) {
         lastTelemetryAt = now;
         activityManager.getMemoryInfo(memoryInfo);
-        ScannerLog.i("SCAN_TELEMETRY", "mesh_vertices=" + JNI.getScanSize()
+        ScannerLog.i("SCAN_TELEMETRY", JNI.getScanTelemetry()
             + " free_mb=" + (memoryInfo.availMem / 1048576L)
             + " battery=" + getBatteryPercentage(main));
       }

@@ -148,10 +148,10 @@ public class Main extends AbstractActivity implements View.OnClickListener,
 
     boolean texturize = (mToPostprocess != null) || (Math.abs(Service.getRunning(this)) == Service.SERVICE_SAVE);
     double res = mRes, dmin = 0.01f, dmax = 7;
-    if (mode == 0 && (mArCoreInfo == null ||
-        (!mArCoreInfo.automaticDepth && !mArCoreInfo.rawDepth))) {
-      res *= 1.5;
-    }
+    // The launcher probe intentionally does not create an ARCore Session on
+    // fragile OEM runtimes. Do not downgrade the selected voxel resolution
+    // based on that incomplete pre-session probe: the real depth capability is
+    // known only after the native Session has been created below.
     mCameraControl.setOffset(res > 0.0099 ? (float) (res * 100) : 0);
     //change resolution for HUAWEI_SFM
     if (mode == 3) { res *= 2.0f; }
@@ -218,6 +218,7 @@ public class Main extends AbstractActivity implements View.OnClickListener,
         + " automatic_depth=" + ((runtimeCapabilities & 2) != 0)
         + " raw_depth=" + ((runtimeCapabilities & 4) != 0)
         + " hardware_depth=" + ((runtimeCapabilities & 8) != 0));
+    ScannerLog.i(TAG, "native_scan_profile " + JNI.getScanTelemetry());
     if (mArCoreInfo != null && mode <= 2) {
       mArCoreInfo.runtimeSessionCreated = (runtimeCapabilities & 1) != 0;
       mArCoreInfo.automaticDepth = (runtimeCapabilities & 2) != 0;

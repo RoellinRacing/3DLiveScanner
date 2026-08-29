@@ -1,4 +1,5 @@
 #include <arcore/arcore.h>
+#include <algorithm>
 #include <cstring>
 #include <mutex>
 #include "service.h"
@@ -71,6 +72,49 @@ namespace oc {
         uint8_t ReadConfidencePixel(const uint8_t* data, int32_t rowStride,
                                     int32_t pixelStride, int x, int y) {
             return data[y * rowStride + x * pixelStride];
+        }
+
+        bool FilterAutomaticDepth(const uint8_t* data, int32_t rowStride,
+                                  int32_t pixelStride, int width, int height,
+                                  int x, int y, uint16_t& depthMm, bool& filled) {
+            uint16_t neighborhood[9];
+            int count = 0;
+            for (int oy = -1; oy <= 1; ++oy) {
+                const int py = y + oy;
+                if (py < 0 || py >= height) continue;
+                for (int ox = -1; ox <= 1; ++ox) {
+                    const int px = x + ox;
+                    if (px < 0 || px >= width) continue;
+                    const uint16_t value = ReadDepthPixel(data, rowStride, pixelStride, px, py);
+                    if (value > 0) neighborhood[count++] = value;
+                }
+            }
+
+            if (count == 0) return false;
+            std::sort(neighborhood, neighborhood + count);
+            const uint16_t median = neighborhood[count / 2];
+
+            if (depthMm == 0) {
+                // Fill only tiny, locally planar holes. This increases surface
+                // continuity without bridging a foreground/background edge.
+                if (count < 6) return false;
+                const int maxSpread = std::max(50, std::min(150, static_cast<int>(median / 20)));
+                if (static_cast<int>(neighborhood[count - 1]) - neighborhood[0] > maxSpread)
+                    return false;
+                depthMm = median;
+                filled = true;
+                return true;
+            }
+
+            // Automatic depth has no confidence image. Reject isolated pixels
+            // and strong local deviations before they create floating TSDF
+            // islands. Preserve normal surface slope with a depth-scaled gate.
+            if (count < 4) return false;
+            const int tolerance = std::max(35, std::min(120, static_cast<int>(median / 25)));
+            if (std::abs(static_cast<int>(depthMm) - median) > tolerance)
+                return false;
+            depthMm = static_cast<uint16_t>((3 * static_cast<int>(depthMm) + median) / 4);
+            return true;
         }
 
     }
@@ -153,6 +197,8 @@ namespace oc {
         lastDepthTimestamp = 0;
         offset = 0;
         resolution = 0;
+        depth_min = 0.05f;
+        depth_max = 100.0f;
         face_mode_ = faceMode;
     }
 
@@ -722,22 +768,27 @@ namespace oc {
             return;
         }
 
-        ArPointCloud *ar_point_cloud = nullptr;
-        ArStatus point_cloud_status = ArFrame_acquirePointCloud(ar_session_, ar_frame_, &ar_point_cloud);
-        int32_t number_of_points = 0;
-        if (point_cloud_status == AR_SUCCESS) {
-            //get point cloud
-            ArPointCloud_getNumberOfPoints(ar_session_, ar_point_cloud, &number_of_points);
-            const float *point_cloud_data;
-            ArPointCloud_getData(ar_session_, ar_point_cloud, &point_cloud_data);
+        // Never feed a stale point cloud into TSDF integration. In depth mode
+        // sparse ARCore feature points also must not be mixed with the dense
+        // metric depth frames; doing so creates small disconnected islands.
+        points.clear();
+        depth_telemetry.feature_points = 0;
 
-            if (number_of_points > 0)
-                points.clear();
-            for (int i = 0; i < number_of_points * 4; i += 4) {
-                points.push_back(glm::vec4(point_cloud_data[i + 0], point_cloud_data[i + 1],
-                                           point_cloud_data[i + 2], point_cloud_data[i + 3]));
+        if (!useDepth) {
+            ArPointCloud *ar_point_cloud = nullptr;
+            ArStatus point_cloud_status = ArFrame_acquirePointCloud(ar_session_, ar_frame_, &ar_point_cloud);
+            int32_t number_of_points = 0;
+            if (point_cloud_status == AR_SUCCESS) {
+                ArPointCloud_getNumberOfPoints(ar_session_, ar_point_cloud, &number_of_points);
+                const float *point_cloud_data;
+                ArPointCloud_getData(ar_session_, ar_point_cloud, &point_cloud_data);
+                for (int i = 0; i < number_of_points * 4; i += 4) {
+                    points.push_back(glm::vec4(point_cloud_data[i + 0], point_cloud_data[i + 1],
+                                               point_cloud_data[i + 2], point_cloud_data[i + 3]));
+                }
+                depth_telemetry.feature_points = number_of_points;
+                ArPointCloud_release(ar_point_cloud);
             }
-            ArPointCloud_release(ar_point_cloud);
         }
 
         if (useDepth) {
@@ -750,6 +801,7 @@ namespace oc {
                 } else {
                     result = ArFrame_acquireDepthImage16Bits(ar_session_, ar_frame_, &image);
                 }
+                depth_telemetry.acquire_status = result;
                 if (result == AR_SUCCESS) {
 
                     const uint8_t* confidenceData = nullptr;
@@ -819,6 +871,9 @@ namespace oc {
                                             (rowStride > 0) &&
                                             (pixelStride >= static_cast<int32_t>(sizeof(uint16_t)));
 
+                    depth_telemetry.width = depthWidth;
+                    depth_telemetry.height = depthHeight;
+
                     //convert depthmap to pointcloud
                     int minConfidence = has_depth_sensor ? 32 : 128;
                     float maxErrorFilter = resolution * 3.0f;
@@ -832,7 +887,13 @@ namespace oc {
                     if (validDepth && (lastDepthTimestamp != timestamp)) {
                         // Replace the feature-point fallback only when this frame
                         // contains a fresh, readable depth image.
-                        points.clear();
+                        depth_telemetry.fresh_frames++;
+                        depth_telemetry.sampled = 0;
+                        depth_telemetry.valid = 0;
+                        depth_telemetry.accepted = 0;
+                        depth_telemetry.hole_filled = 0;
+                        depth_telemetry.rejected_outlier = 0;
+                        depth_telemetry.rejected_range = 0;
 
                         float maxY = INT_MIN;
                         std::map<int, float> distances;
@@ -841,7 +902,8 @@ namespace oc {
                         int m = has_depth_sensor
                                 ? glm::max(0, (depthWidth - depthHeight) / 2)
                                 : 0;
-                        if (depthWidth > 240) s = depthWidth / 240.0f;
+                        const float targetWidth = useDepthRaw ? 240.0f : 320.0f;
+                        if (depthWidth > targetWidth) s = depthWidth / targetWidth;
                         for (float fy = 0; fy < depthHeight; fy += s) {
                             for (float fx = m; fx < depthWidth - m; fx += s) {
                                 int x = (int)fx;
@@ -849,9 +911,22 @@ namespace oc {
                                 if ((x < 4) && (y == 0))
                                     continue;
 
+                                depth_telemetry.sampled++;
+
                                 //check point validity
-                                double depth = ReadDepthPixel(imgData, rowStride, pixelStride,
-                                                              x, y) * 0.001f;
+                                uint16_t depthMm = ReadDepthPixel(imgData, rowStride, pixelStride, x, y);
+                                if (depthMm > 0) depth_telemetry.valid++;
+                                if (!useDepthRaw && !has_depth_sensor) {
+                                    bool filled = false;
+                                    if (!FilterAutomaticDepth(imgData, rowStride, pixelStride,
+                                                              depthWidth, depthHeight, x, y,
+                                                              depthMm, filled)) {
+                                        if (depthMm > 0) depth_telemetry.rejected_outlier++;
+                                        continue;
+                                    }
+                                    if (filled) depth_telemetry.hole_filled++;
+                                }
+                                double depth = depthMm * 0.001f;
                                 if (hasConfidence) {
                                     if (ReadConfidencePixel(confidenceData, confidenceRowStride,
                                                             confidencePixelStride, x, y) <= minConfidence) {
@@ -944,6 +1019,10 @@ namespace oc {
                                 }
 
                                 //add point into output
+                                if (depth < depth_min || depth > depth_max) {
+                                    depth_telemetry.rejected_range++;
+                                    continue;
+                                }
                                 if (depth > 0.05) {
                                     depth -= offset;
                                     glm::vec4 p = ToPoint(screen2world, len, depthWidth, depthHeight, x, y, depth);
@@ -1014,6 +1093,11 @@ namespace oc {
                                 }
                             }
                         }
+                        depth_telemetry.accepted = static_cast<int>(points.size());
+                    } else if (validDepth) {
+                        depth_telemetry.repeated_frames++;
+                    } else {
+                        depth_telemetry.unavailable_frames++;
                     }
 
                     //cleanup
@@ -1026,6 +1110,8 @@ namespace oc {
                     ArImage_release(image);
                     if (validDepth && (lastDepthTimestamp != timestamp))
                         lastDepthTimestamp = timestamp;
+                } else {
+                    depth_telemetry.unavailable_frames++;
                 }
         }
         has_coordinate_system_ = true;

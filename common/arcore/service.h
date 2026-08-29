@@ -55,6 +55,8 @@ namespace oc {
         // bit 0 ready, bit 1 depth, bit 2 raw depth, bit 3 hardware depth
         int GetRuntimeCapabilities();
 
+        DepthTelemetry GetDepthTelemetry();
+
         bool HasCoordinateSystem();
 
         std::vector<glm::mat4> GetPose();
@@ -82,6 +84,8 @@ namespace oc {
         void SetOffset(float offset);
 
         void SetResolution(float res);
+
+        void SetDepthRange(float min_depth, float max_depth);
 
     private:
         ARCore* google;

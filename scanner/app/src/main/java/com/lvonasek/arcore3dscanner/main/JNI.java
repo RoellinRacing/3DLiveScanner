@@ -102,6 +102,14 @@ public class JNI
   // Scan size
   public static native int getScanSize();
 
+  // Native depth and meshing counters for diagnostics.
+  private static native byte[] getScanTelemetryNative();
+
+  public static String getScanTelemetry() {
+    byte[] telemetry = getScanTelemetryNative();
+    return telemetry == null ? "" : new String(telemetry, StandardCharsets.UTF_8);
+  }
+
   // Get back previous state of the model
   public static native void restore();
 

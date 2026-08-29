@@ -10,6 +10,22 @@
 
 namespace oc {
 
+    struct DepthTelemetry {
+        int width = 0;
+        int height = 0;
+        int sampled = 0;
+        int valid = 0;
+        int accepted = 0;
+        int hole_filled = 0;
+        int rejected_outlier = 0;
+        int rejected_range = 0;
+        int feature_points = 0;
+        int acquire_status = 0;
+        long long fresh_frames = 0;
+        long long repeated_frames = 0;
+        long long unavailable_frames = 0;
+    };
+
     class ARCore {
     public:
         ARCore(void *env, void *context, bool faceMode, bool depthCamera = false);
@@ -68,6 +84,13 @@ namespace oc {
             return session_ready_ && has_depth_sensor;
         }
 
+        DepthTelemetry GetDepthTelemetry() const { return depth_telemetry; }
+
+        void SetDepthRange(float min_depth, float max_depth) {
+            depth_min = min_depth;
+            depth_max = max_depth;
+        }
+
     private:
         glm::mat4 GetMatrix(ArPose* ar_pose);
 
@@ -104,6 +127,9 @@ namespace oc {
         bool session_ready_ = false;
         bool useDepth;
         bool useDepthRaw;
+        float depth_min;
+        float depth_max;
+        DepthTelemetry depth_telemetry;
         int viewportWidth;
         int viewportHeight;
         int64_t lastDepthTimestamp;

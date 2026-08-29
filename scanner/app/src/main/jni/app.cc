@@ -45,7 +45,9 @@ namespace oc {
                   lastYaw(0),
                   lowest(0),
                   viewportWidth(1),
-                  viewportHeight(1) {
+                  viewportHeight(1),
+                  scanNoise(0),
+                  scanResolution(0) {
     }
 
     bool App::OnARServiceConnected(JNIEnv *env, jobject context, double res, double dmin,
@@ -65,7 +67,21 @@ namespace oc {
         }
         ar->SetOffset(offset ? (float) fabs(res) : 0);
         ar->SetResolution((float)fabs(res));
-        reconstruction.Setup(res, dmin, dmax, noise, holesFilling, poseCorrection, distortion, clearing, dataset_path);
+        ar->SetDepthRange((float)dmin, (float)dmax);
+
+        // Dense AUTOMATIC depth is already temporally filtered by ARCore. The
+        // legacy default of nine required vertices removes too much useful
+        // surface on motion-depth-only phones. A three-vertex minimum keeps a
+        // triangle while the spatial depth filter rejects isolated pixels.
+        int effectiveNoise = noise;
+        const int capabilities = ar->GetRuntimeCapabilities();
+        const bool automaticOnly = (capabilities & 2) && !(capabilities & 4) && !(capabilities & 8);
+        if (automaticOnly && effectiveNoise > 3)
+            effectiveNoise = 3;
+        scanNoise = effectiveNoise;
+        scanResolution = fabs(res);
+        reconstruction.Setup(res, dmin, dmax, effectiveNoise, holesFilling, poseCorrection,
+                             distortion, clearing, dataset_path);
 
         std::string access = reconstruction.dataset->GetPath() + "/test.txt";
         FILE* file = fopen(access.c_str(), "w");
@@ -79,6 +95,47 @@ namespace oc {
 
     int App::GetRuntimeCapabilities() {
         return ar ? ar->GetRuntimeCapabilities() : 0;
+    }
+
+    std::string App::GetScanTelemetry() {
+        reconstruction.render_mutex_.lock();
+        const int capabilities = ar ? ar->GetRuntimeCapabilities() : 0;
+        const DepthTelemetry depth = ar ? ar->GetDepthTelemetry() : DepthTelemetry();
+        long long meshVertices = 0;
+        long long meshFaces = 0;
+        const auto meshes = reconstruction.scan.Data();
+        for (const auto& entry : meshes) {
+            if (!entry.second) continue;
+            meshVertices += entry.second->num_vertices;
+            meshFaces += entry.second->num_faces;
+        }
+        reconstruction.render_mutex_.unlock();
+
+        const char* depthMode = "feature";
+        if (capabilities & 8) depthMode = "hardware";
+        else if (capabilities & 4) depthMode = "raw";
+        else if (capabilities & 2) depthMode = "automatic";
+
+        std::ostringstream output;
+        output << "mesh_segments=" << meshes.size()
+               << " mesh_vertices=" << meshVertices
+               << " mesh_faces=" << meshFaces
+               << " resolution_mm=" << (int)lround(scanResolution * 1000.0)
+               << " mesher_min_vertices=" << scanNoise
+               << " depth_mode=" << depthMode
+               << " depth_size=" << depth.width << "x" << depth.height
+               << " depth_fresh=" << depth.fresh_frames
+               << " depth_repeat=" << depth.repeated_frames
+               << " depth_unavailable=" << depth.unavailable_frames
+               << " depth_status=" << depth.acquire_status
+               << " depth_sampled=" << depth.sampled
+               << " depth_valid=" << depth.valid
+               << " depth_points=" << depth.accepted
+               << " depth_filled=" << depth.hole_filled
+               << " depth_outliers=" << depth.rejected_outlier
+               << " depth_range_rejects=" << depth.rejected_range
+               << " feature_points=" << depth.feature_points;
+        return output.str();
     }
 
     void App::OnSurfaceChanged(int width, int height, bool fullhd) {
@@ -1287,6 +1344,18 @@ Java_com_lvonasek_arcore3dscanner_main_JNI_setPhotoMode(JNIEnv *env, jclass claz
 JNIEXPORT jint JNICALL
 Java_com_lvonasek_arcore3dscanner_main_JNI_getScanSize(JNIEnv *env, jclass clazz) {
     return app.GetScanSize();
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_getScanTelemetryNative(JNIEnv* env, jclass) {
+    std::string telemetry = app.GetScanTelemetry();
+    const int byteCount = (int)telemetry.length();
+    jbyteArray bytes = env->NewByteArray(byteCount);
+    if (byteCount > 0) {
+        env->SetByteArrayRegion(bytes, 0, byteCount,
+            reinterpret_cast<const jbyte*>(telemetry.c_str()));
+    }
+    return bytes;
 }
 
 #ifdef __cplusplus
