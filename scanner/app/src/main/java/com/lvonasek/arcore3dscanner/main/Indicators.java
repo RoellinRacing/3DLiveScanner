@@ -14,6 +14,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.lvonasek.arcore3dscanner.ui.AbstractActivity;
+import com.lvonasek.arcore3dscanner.diagnostics.ScannerLog;
 
 public class Indicators implements Runnable {
 
@@ -32,6 +33,9 @@ public class Indicators implements Runnable {
 
   private volatile String overrideMessage;
   private volatile boolean running = true;
+  private String lastRawEvent = "";
+  private String lastCoachState = "";
+  private long lastTelemetryAt;
 
   public Indicators(AbstractActivity main) {
     this(main, new DeviceCapabilities(main, DeviceCapabilities.probeArCore(main)));
@@ -102,9 +106,29 @@ public class Indicators implements Runnable {
       }
       if (!running || main.isFinishing() || main.isDestroyed()) break;
       final String rawEvent = JNI.getRawEvent();
+      if (!rawEvent.equals(lastRawEvent)) {
+        ScannerLog.i("SCAN_EVENT", "native_event="
+            + (rawEvent.length() == 0 ? "clear" : rawEvent.replace('\n', ' ')));
+        lastRawEvent = rawEvent;
+      }
       final String nativeMessage = JNI.localizeEvent(rawEvent, main.getResources());
       final DeviceCapabilities.CoachState coach =
           capabilities == null ? null : capabilities.evaluate(rawEvent);
+      if (coach != null) {
+        String state = coach.level + "/" + coach.tracking + "/" + coach.message;
+        if (!state.equals(lastCoachState)) {
+          ScannerLog.i("SCAN_COACH", "state=" + state.replace('\n', ' '));
+          lastCoachState = state;
+        }
+      }
+      long now = System.currentTimeMillis();
+      if (now - lastTelemetryAt >= 10000) {
+        lastTelemetryAt = now;
+        activityManager.getMemoryInfo(memoryInfo);
+        ScannerLog.i("SCAN_TELEMETRY", "mesh_vertices=" + JNI.getScanSize()
+            + " free_mb=" + (memoryInfo.availMem / 1048576L)
+            + " battery=" + getBatteryPercentage(main));
+      }
       main.runOnUiThread(() -> update(nativeMessage, coach));
     }
   }

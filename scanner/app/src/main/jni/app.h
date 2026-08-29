@@ -31,6 +31,7 @@ namespace oc {
         void OnUndoButtonClicked(bool fromUser, bool texturize);
         void OnUndoPreviewUpdate(int frames);
         void OnPause();
+        bool FinalizeDatasetCapture();
 
         void Extract(std::string path, int mode);
         bool Load(std::string filename);

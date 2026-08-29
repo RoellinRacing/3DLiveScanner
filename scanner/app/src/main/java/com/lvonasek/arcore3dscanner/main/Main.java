@@ -46,6 +46,7 @@ import com.lvonasek.utils.Compass;
 import com.lvonasek.utils.Compatibility;
 import com.lvonasek.utils.GPS;
 import com.lvonasek.arcore3dscanner.BuildConfig;
+import com.lvonasek.arcore3dscanner.diagnostics.ScannerLog;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -159,7 +160,7 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     mAnchors      = pref.getBoolean(getString(R.string.pref_anchor), false);
     int noise     = Integer.parseInt(pref.getString(getString(R.string.pref_noise), "9"));
     boolean analy = pref.getBoolean(getString(R.string.pref_subset), false);
-    boolean clear = pref.getBoolean(getString(R.string.pref_clear), true);
+    boolean clear = pref.getBoolean(getString(R.string.pref_clear), false);
     boolean disto = false;
     boolean poses = pref.getBoolean(getString(R.string.pref_slow), false);
     boolean offst = pref.getBoolean(getString(R.string.pref_offset), false) && !poses;
@@ -199,14 +200,24 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     int texture_res = MB >= 8000 ? 4096 : 2048;
 
     String t = mToPostprocess != null ? mToPostprocess : getTempPath().getAbsolutePath();
+    ScannerLog.i(TAG, "bind_ar mode=" + mode + " resolution=" + res
+        + " range=" + dmin + ".." + dmax + " noise=" + noise
+        + " clearing=" + clear + " dataset_capture=" + isPostProcessLaterOn(this)
+        + " postprocess=" + (mToPostprocess != null));
     JNI.motionTrackingMessages = !isFaceModeOn(this);
     JNI.setTextureParams(decimation, texture_res, texture_max);
     if (!JNI.onARServiceConnected(this, res, dmin, dmax, noise, holes, poses, disto, offst,
                               flash, mode, clear, t.getBytes())) {
+      ScannerLog.e(TAG, "native_ar_service_connection_failed mode=" + mode, null);
       showArRuntimeFailureDialog();
       return;
     }
     int runtimeCapabilities = JNI.getRuntimeCapabilities();
+    ScannerLog.i(TAG, "native_ar_ready capabilities=" + runtimeCapabilities
+        + " session=" + ((runtimeCapabilities & 1) != 0)
+        + " automatic_depth=" + ((runtimeCapabilities & 2) != 0)
+        + " raw_depth=" + ((runtimeCapabilities & 4) != 0)
+        + " hardware_depth=" + ((runtimeCapabilities & 8) != 0));
     if (mArCoreInfo != null && mode <= 2) {
       mArCoreInfo.runtimeSessionCreated = (runtimeCapabilities & 1) != 0;
       mArCoreInfo.automaticDepth = (runtimeCapabilities & 2) != 0;
@@ -270,6 +281,10 @@ public class Main extends AbstractActivity implements View.OnClickListener,
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
+    ScannerLog.i(TAG, "activity_create file=" + getIntent().getStringExtra(FILE_KEY)
+        + " mode=" + PreferenceManager.getDefaultSharedPreferences(this)
+        .getString(getString(R.string.pref_mode), "realtime")
+        + " dataset_capture=" + isPostProcessLaterOn(this));
 
     // Probe once before the native session owns the camera. The result is reused
     // by mode selection, the scan coach and the diagnostics export.
@@ -1089,28 +1104,38 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     //save dataset
     else if (isPostProcessLaterOn(this)) {
       Service.process(getString(R.string.saving), Service.SERVICE_SAVE, this, () -> {
-        JNI.onToggleButtonClicked(false);
+        ScannerLog.i(TAG, "dataset_finalize_requested scan_size=" + JNI.getScanSize());
+        boolean finalized = JNI.finalizeDatasetCapture();
         mGLView.stop();
-        finish();
         Date date = new Date() ;
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
         final String filename = dateFormat.format(date);
-        File input = new File(getTempPath(), "model" + Exporter.EXT_OBJ);
-        if (JNI.save(input.getAbsolutePath().getBytes())) {
-          File dataset = new File(getPath(false), filename + Exporter.EXT_DATASET);
-          if (getTempPath().renameTo(dataset)) {
-            Log.d(TAG, "Datased saved");
-            for (File file : dataset.listFiles()) {
-              if (file.getAbsolutePath().endsWith(".bin")) {
-                if (file.delete()) {
-                  Log.d(TAG, file + " deleted");
-                }
+        File source = getTempPath();
+        File dataset = new File(getPath(false), filename + Exporter.EXT_DATASET);
+        boolean valid = finalized && hasDatasetFrames(source);
+        boolean moved = valid && source.renameTo(dataset);
+        if (moved) {
+          ScannerLog.i(TAG, "dataset_saved path=" + dataset.getAbsolutePath()
+              + " frames=" + countDatasetFrames(dataset));
+          File[] files = dataset.listFiles();
+          if (files != null) {
+            for (File file : files) {
+              if (file.getName().endsWith(".bin") && file.delete()) {
+                ScannerLog.i(TAG, "dataset_preview_removed file=" + file.getName());
               }
             }
           }
+        } else {
+          ScannerLog.w(TAG, "dataset_save_failed finalized=" + finalized
+              + " valid=" + valid + " source=" + source.getAbsolutePath());
         }
         Service.reset(Main.this);
-        System.exit(0);
+        runOnUiThread(() -> {
+          if (!moved) {
+            Toast.makeText(Main.this, R.string.dataset_no_frames, Toast.LENGTH_LONG).show();
+          }
+          finish();
+        });
       });
     }
     //save obj
@@ -1128,6 +1153,22 @@ public class Main extends AbstractActivity implements View.OnClickListener,
         }
       });
     }
+  }
+
+  private static boolean hasDatasetFrames(File directory) {
+    return new File(directory, "state.txt").isFile()
+        && countFilesWithSuffix(directory, ".jpg") > 0
+        && countFilesWithSuffix(directory, ".pcl") > 0;
+  }
+
+  private static int countDatasetFrames(File directory) {
+    return Math.min(countFilesWithSuffix(directory, ".jpg"),
+        countFilesWithSuffix(directory, ".pcl"));
+  }
+
+  private static int countFilesWithSuffix(File directory, String suffix) {
+    File[] files = directory.listFiles((dir, name) -> name.endsWith(suffix));
+    return files == null ? 0 : files.length;
   }
 
   private void showAndroidBugDialog() {

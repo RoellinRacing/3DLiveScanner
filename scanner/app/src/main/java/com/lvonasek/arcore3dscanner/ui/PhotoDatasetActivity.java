@@ -49,6 +49,7 @@ import androidx.core.content.FileProvider;
 
 import com.google.ar.core.ArCoreApk;
 import com.lvonasek.arcore3dscanner.R;
+import com.lvonasek.arcore3dscanner.diagnostics.ScannerLog;
 import com.lvonasek.utils.Compatibility;
 
 import org.json.JSONArray;
@@ -192,10 +193,14 @@ public final class PhotoDatasetActivity extends AbstractActivity
     if (root == null) root = getFilesDir();
     datasetDirectory = new File(new File(root, "3D Live Scanner/PhotoScans"), sessionName);
     if (!datasetDirectory.isDirectory() && !datasetDirectory.mkdirs()) {
+      ScannerLog.e("PHOTO_SCAN", "dataset_directory_create_failed path="
+          + datasetDirectory.getAbsolutePath(), null);
       Toast.makeText(this, R.string.photo_scan_capture_failed, Toast.LENGTH_LONG).show();
       finish();
       return;
     }
+    ScannerLog.i("PHOTO_SCAN", "activity_create session=" + sessionName
+        + " path=" + datasetDirectory.getAbsolutePath());
 
     autoButton.setOnClickListener(view -> toggleAutoCapture());
     captureButton.setOnClickListener(view -> requestCapture());
@@ -213,6 +218,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
   @Override
   protected void onResume() {
     super.onResume();
+    ScannerLog.i("PHOTO_SCAN", "activity_resume");
     activityActive = true;
     startCameraThread();
     registerSensors();
@@ -225,6 +231,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
 
   @Override
   protected void onPause() {
+    ScannerLog.i("PHOTO_SCAN", "activity_pause frames=" + frames.size());
     activityActive = false;
     setAutoCapture(false);
     unregisterSensors();
@@ -279,6 +286,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
       }
       configureTransform(width, height);
       cameraOpening = true;
+      ScannerLog.i("PHOTO_SCAN", "camera_open_requested id=" + cameraId);
       manager.openCamera(cameraId, new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice openedCamera) {
@@ -288,6 +296,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
             return;
           }
           camera = openedCamera;
+          ScannerLog.i("PHOTO_SCAN", "camera_opened id=" + cameraId);
           createPreviewSession();
         }
 
@@ -297,6 +306,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
           disconnectedCamera.close();
           if (camera == disconnectedCamera) camera = null;
           cameraReady = false;
+          ScannerLog.w("PHOTO_SCAN", "camera_disconnected id=" + cameraId);
         }
 
         @Override
@@ -305,6 +315,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
           failedCamera.close();
           if (camera == failedCamera) camera = null;
           cameraReady = false;
+          ScannerLog.e("PHOTO_SCAN", "camera_error code=" + error, null);
           showCameraFailure(null);
         }
       }, cameraHandler);
@@ -337,6 +348,10 @@ public final class PhotoDatasetActivity extends AbstractActivity
       int[] modes = characteristics.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES);
       continuousAutoFocus = contains(modes,
           CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+      ScannerLog.i("PHOTO_SCAN", "camera_selected id=" + cameraId
+          + " jpeg=" + jpegSize + " preview=" + previewSize
+          + " sensor_orientation=" + sensorOrientation
+          + " continuous_af=" + continuousAutoFocus);
       return true;
     }
     return false;
@@ -410,6 +425,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
               try {
                 session.setRepeatingRequest(previewRequest.build(), null, cameraHandler);
                 cameraReady = true;
+                ScannerLog.i("PHOTO_SCAN", "preview_ready");
                 runOnUiThread(PhotoDatasetActivity.this::updateCount);
               } catch (Throwable error) {
                 showCameraFailure(error);
@@ -419,6 +435,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
             @Override
             public void onConfigureFailed(CameraCaptureSession session) {
               cameraReady = false;
+              ScannerLog.e("PHOTO_SCAN", "preview_configuration_failed", null);
               showCameraFailure(null);
             }
           }, handler);
@@ -437,7 +454,11 @@ public final class PhotoDatasetActivity extends AbstractActivity
   }
 
   private void requestCapture() {
-    if (!cameraReady || capturePending || exporting) return;
+    if (!cameraReady || capturePending || exporting) {
+      ScannerLog.w("PHOTO_SCAN", "capture_ignored camera_ready=" + cameraReady
+          + " pending=" + capturePending + " exporting=" + exporting);
+      return;
+    }
     Handler handler = cameraHandler;
     if (handler != null) {
       capturePending = true;
@@ -516,7 +537,12 @@ public final class PhotoDatasetActivity extends AbstractActivity
       pendingCapture = null;
       capturePending = false;
       runOnUiThread(this::updateCount);
+      ScannerLog.i("PHOTO_SCAN", "frame_saved index=" + pending.index
+          + " bytes=" + bytes.length + " auto=" + autoCapture
+          + " angular_speed=" + pending.angularSpeed
+          + " acceleration=" + pending.linearAcceleration);
     } catch (Throwable error) {
+      ScannerLog.e("PHOTO_SCAN", "frame_save_failed", error);
       failPendingCapture(pending);
     } finally {
       if (image != null) image.close();
@@ -527,6 +553,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
     if (pending == null || pendingCapture != pending) return;
     pendingCapture = null;
     capturePending = false;
+    ScannerLog.w("PHOTO_SCAN", "capture_failed index=" + pending.index);
     runOnUiThread(() -> Toast.makeText(
         this, R.string.photo_scan_capture_failed, Toast.LENGTH_LONG).show());
   }
@@ -564,6 +591,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
 
   private void setAutoCapture(boolean enabled) {
     autoCapture = enabled;
+    ScannerLog.i("PHOTO_SCAN", "auto_capture=" + enabled);
     mainHandler.removeCallbacks(autoCaptureRunnable);
     if (autoButton != null) {
       autoButton.setText(enabled ? R.string.photo_scan_auto_stop
@@ -594,12 +622,14 @@ public final class PhotoDatasetActivity extends AbstractActivity
       count = frames.size();
     }
     if (count < 12) {
+      ScannerLog.w("PHOTO_SCAN", "archive_rejected insufficient_frames=" + count);
       Toast.makeText(this, R.string.photo_scan_need_photos, Toast.LENGTH_LONG).show();
       return;
     }
     if (exporting) return;
     setAutoCapture(false);
     exporting = true;
+    ScannerLog.i("PHOTO_SCAN", "archive_started frames=" + count);
     setControlsEnabled(false);
     status.setText(R.string.working);
     new Thread(() -> {
@@ -611,6 +641,8 @@ public final class PhotoDatasetActivity extends AbstractActivity
         }
         archive = new File(exportDirectory, sessionName + ".photoscan.zip");
         zipDataset(archive);
+        ScannerLog.i("PHOTO_SCAN", "archive_ready path=" + archive.getAbsolutePath()
+            + " bytes=" + archive.length());
         runOnUiThread(() -> {
           exporting = false;
           setControlsEnabled(true);
@@ -618,6 +650,7 @@ public final class PhotoDatasetActivity extends AbstractActivity
           showArchiveActions(count);
         });
       } catch (Throwable error) {
+        ScannerLog.e("PHOTO_SCAN", "archive_failed", error);
         runOnUiThread(() -> {
           exporting = false;
           setControlsEnabled(true);

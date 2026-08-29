@@ -48,6 +48,9 @@ public class JNI
   // Pauses the AR
   public static native void onPause();
 
+  // Stops capture and waits until the final dataset frame is fully persisted.
+  public static native boolean finalizeDatasetCapture();
+
   // Extract data from the dataset
   public static native void extract(byte[] path, int mode);
 
@@ -157,6 +160,7 @@ public class JNI
     event = event.replace("UNWRAP", r.getString(R.string.event_unwrap));
     event = event.replace("POISSON", r.getString(R.string.poisson));
     event = event.replace("ALIGNMENT", r.getString(R.string.align_pose));
+    event = event.replace("DATASET_INVALID", r.getString(R.string.dataset_no_frames));
 
     if (motionTrackingMessages) {
       event = event.replace("MT_INIT", "");

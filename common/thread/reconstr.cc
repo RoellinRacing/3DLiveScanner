@@ -464,10 +464,15 @@ namespace oc {
             }
 
             //mesh reconstruction
-            double temp;
+            double temp = 0;
             Tango3DR_Status ret;
-            int count, width, height;
+            int count = 0, width = 0, height = 0;
             dataset->ReadState(count, width, height, temp, temp, temp, temp);
+            if (count <= 0 || width <= 0 || height <= 0) {
+                texturize.SetEvent("DATASET_INVALID");
+                binder_mutex_.unlock();
+                return;
+            }
             int scale = width > 1000 ? 3 : 1;
             texturize.SetCalibration(scan.Context(), dataset, scale);
             Tango3DR_ImageBuffer image;

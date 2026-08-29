@@ -57,7 +57,7 @@
                             android:title="@string/offset" />
 
                         <CheckBoxPreference
-                            android:defaultValue="true"
+                            android:defaultValue="false"
                             android:key="@string/pref_fullhd"
                             android:summary="@string/fullhd_summary"
                             android:title="@string/fullhd" />

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,12 +25,14 @@ import android.widget.GridView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.ar.core.ArCoreApk;
 import com.lvonasek.arcore3dscanner.R;
 import com.lvonasek.arcore3dscanner.ScannerApplication;
+import com.lvonasek.arcore3dscanner.diagnostics.ScannerLog;
 import com.lvonasek.arcore3dscanner.main.DeviceCapabilities;
 import com.lvonasek.arcore3dscanner.main.Exporter;
 import com.lvonasek.arcore3dscanner.main.Main;
@@ -69,6 +72,8 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
     boolean showPro = Compatibility.isPlayStoreSupported(this) && !isProVersion(this);
     findViewById(R.id.settings).setOnClickListener(this);
+    findViewById(R.id.logs).setOnClickListener(this);
+    ScannerLog.i(TAG, "project_browser_create");
 
     mName = findViewById(R.id.name);
     mRename = findViewById(R.id.rename);
@@ -130,7 +135,7 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
 
   @Override
   public int getStatusBarColor() {
-    return Color.argb(255, 48, 48, 48);
+    return getColor(R.color.scanner_background);
   }
 
   @Override
@@ -372,33 +377,85 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
     } else if (id == R.id.share) {
       mAdapter.shareModel();
     } else if (id == R.id.add_button) {
-      SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-      if (pref.getBoolean(getString(R.string.pref_gps), false)) {
-        String[] permissions = {
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_FINE_LOCATION
-        };
-        onPermissionSuccess = this::startScanning;
-        askForPermissions(permissions);
-      } else {
-        startScanning();
-      }
+      startScanning();
     } else if (id == R.id.service_cancel) {
       Service.reset(this);
       System.exit(0);
     } else if (id == R.id.settings) {
       startActivity(new Intent(this, Settings.class));
+    } else if (id == R.id.logs) {
+      showLogConsole();
     }
   }
 
 
   private void startScanning()
   {
+    ScannerLog.i(TAG, "scan_mode_dialog_opened");
+    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    builder.setView(R.layout.dialog_scan);
+    Dialog dialog = builder.create();
+    dialog.show();
+    if (dialog.getWindow() != null) {
+      dialog.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
+    }
+
+    ArrayList<Drawable> icons = new ArrayList<>();
+    ArrayList<String> values = new ArrayList<>();
+    ArrayList<String> descriptions = new ArrayList<>();
+    ArrayList<String> modes = new ArrayList<>();
+    icons.add(getDrawable(R.drawable.ic_type_scan));
+    values.add(getString(R.string.mode_realtime));
+    descriptions.add(getString(R.string.mode_realtime_description));
+    modes.add("realtime");
+    icons.add(getDrawable(R.drawable.ic_type_dataset));
+    values.add(getString(R.string.mode_dataset));
+    descriptions.add(getString(R.string.mode_dataset_description));
+    modes.add("dataset");
+    icons.add(getDrawable(R.drawable.ic_type_photogrammetry));
+    values.add(getString(R.string.mode_photogrammetry));
+    descriptions.add(getString(R.string.mode_photogrammetry_description));
+    modes.add("photogrammetry");
+
+    ArrayAdapterWithIcons adapter = new ArrayAdapterWithIcons(
+        this, values, icons, descriptions);
+    GridView list = dialog.findViewById(R.id.list);
+    list.setAdapter(adapter);
+    list.setOnTouchListener((v, event) -> event.getAction() == MotionEvent.ACTION_MOVE);
+    list.setOnItemClickListener((adapterView, view, index, l) -> {
+      dialog.dismiss();
+      String mode = modes.get(index);
+      ScannerLog.i(TAG, "scan_mode_selected mode=" + mode);
+      if ("photogrammetry".equals(mode)) {
+        startActivity(new Intent(FileManager.this, PhotoDatasetActivity.class));
+      } else {
+        requestNativeScan("dataset".equals(mode));
+      }
+    });
+  }
+
+  private void requestNativeScan(boolean datasetCapture) {
+    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+    Runnable start = () -> startNativeScanning(datasetCapture);
+    if (pref.getBoolean(getString(R.string.pref_gps), false)) {
+      String[] permissions = {
+          Manifest.permission.ACCESS_COARSE_LOCATION,
+          Manifest.permission.ACCESS_FINE_LOCATION
+      };
+      onPermissionSuccess = start;
+      askForPermissions(permissions);
+    } else {
+      start.run();
+    }
+  }
+
+  private void startNativeScanning(boolean datasetCapture) {
+    ScannerLog.i(TAG, "native_scan_probe_started dataset_capture=" + datasetCapture);
     boolean runtimeUsable = false;
     try {
       runtimeUsable = Compatibility.isScanningSessionUsable(this);
     } catch (Throwable error) {
-      Log.e(TAG, "AR runtime probe failed", error);
+      ScannerLog.e(TAG, "ar_runtime_probe_failed", error);
     }
     if (!runtimeUsable) {
       // Installation/update UI is allowed only after the user explicitly asks
@@ -415,58 +472,73 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
           runtimeUsable = Compatibility.isARCoreReady(this);
         }
       } catch (Throwable error) {
-        Log.e(TAG, "Unable to install or update ARCore", error);
+        ScannerLog.e(TAG, "ar_runtime_install_failed", error);
       }
     }
     if (!runtimeUsable) {
+      ScannerLog.w(TAG, "native_scan_unavailable dataset_capture=" + datasetCapture);
       showScanningUnavailable();
       return;
     }
+    SharedPreferences.Editor editor = PreferenceManager
+        .getDefaultSharedPreferences(this).edit();
+    editor.putBoolean(getString(R.string.pref_later), datasetCapture);
+    editor.putString(getString(R.string.pref_mode), "realtime");
+    if (datasetCapture) editor.putBoolean(getString(R.string.pref_fullhd), true);
+    editor.apply();
+    ScannerLog.i(TAG, "native_scan_launch dataset_capture=" + datasetCapture);
+    showProgress();
+    startActivity(new Intent(FileManager.this, Main.class));
+  }
 
-    AlertDialog.Builder builder = new AlertDialog.Builder(this);
-    builder.setView(R.layout.dialog_scan);
-    Dialog dialog = builder.create();
-    dialog.show();
-    if (dialog.getWindow() != null) {
-      dialog.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
+  private void showLogConsole() {
+    String logs = ScannerLog.readAll(this);
+    String preview = logs.length() > 12000
+        ? "…\n" + logs.substring(logs.length() - 12000) : logs;
+    TextView view = new TextView(this);
+    int padding = Math.round(18 * getResources().getDisplayMetrics().density);
+    view.setPadding(padding, padding, padding, padding);
+    view.setText(preview);
+    view.setTextColor(getColor(R.color.scanner_text_secondary));
+    view.setTextSize(12);
+    view.setTextIsSelectable(true);
+    view.setTypeface(android.graphics.Typeface.MONOSPACE);
+    ScrollView scroll = new ScrollView(this);
+    scroll.addView(view);
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.logs_title)
+        .setMessage(R.string.logs_message)
+        .setView(scroll)
+        .setPositiveButton(R.string.logs_copy, (dialog, which) -> copyLogs())
+        .setNeutralButton(R.string.logs_share, (dialog, which) -> shareLogs())
+        .setNegativeButton(R.string.action_close, null)
+        .show();
+  }
+
+  private void copyLogs() {
+    ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+    if (clipboard == null) return;
+    clipboard.setPrimaryClip(ClipData.newPlainText(
+        "3D Live Scanner MAX diagnostics", ScannerLog.readAll(this)));
+    ScannerLog.i(TAG, "logs_copied_to_clipboard");
+    Toast.makeText(this, R.string.logs_copied, Toast.LENGTH_SHORT).show();
+  }
+
+  private void shareLogs() {
+    try {
+      File report = ScannerLog.createExport(this);
+      Uri uri = FileProvider.getUriForFile(
+          this, getPackageName() + ".provider", report);
+      Intent intent = new Intent(Intent.ACTION_SEND);
+      intent.setType("text/plain");
+      intent.putExtra(Intent.EXTRA_STREAM, uri);
+      intent.setClipData(ClipData.newRawUri("scanner diagnostics", uri));
+      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      startActivity(Intent.createChooser(intent, getString(R.string.logs_share)));
+    } catch (Throwable error) {
+      ScannerLog.e(TAG, "log_share_failed", error);
+      Toast.makeText(this, R.string.diagnostics_failed, Toast.LENGTH_LONG).show();
     }
-
-    ArrayList<Drawable> icons = new ArrayList<>();
-    ArrayList<String> values = new ArrayList<>();
-    icons.add(getDrawable(R.drawable.ic_type_face));
-    values.add(getString(R.string.mode_face));
-    icons.add(getDrawable(R.drawable.ic_type_scan));
-    values.add(getString(R.string.mode_realtime));
-    if (isProVersion(this)) {
-      icons.add(getDrawable(R.drawable.ic_type_dataset));
-      values.add(getString(R.string.mode_dataset));
-    }
-
-    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(FileManager.this);
-    ArrayAdapterWithIcons adapter = new ArrayAdapterWithIcons(this, values, icons);
-    GridView list = dialog.findViewById(R.id.list);
-    list.setAdapter(adapter);
-    list.setOnTouchListener((v, event) -> event.getAction() == MotionEvent.ACTION_MOVE);
-    list.setOnItemClickListener((adapterView, view, index, l) -> {
-      dialog.dismiss();
-      showProgress();
-
-      String mode = values.get(index);
-      SharedPreferences.Editor e = pref.edit();
-      if (mode.compareTo(getString(R.string.mode_dataset)) == 0) {
-        e.putBoolean(getString(R.string.pref_later), true);
-        e.putString(getString(R.string.pref_mode), "realtime");
-      } else if (mode.compareTo(getString(R.string.mode_face)) == 0) {
-        e.putBoolean(getString(R.string.pref_later), false);
-        e.putString(getString(R.string.pref_mode), "face");
-      } else if (mode.compareTo(getString(R.string.mode_realtime)) == 0) {
-        e.putBoolean(getString(R.string.pref_later), false);
-        e.putString(getString(R.string.pref_mode), "realtime");
-      }
-      e.commit();
-
-      startActivity(new Intent(FileManager.this, Main.class));
-    });
   }
 
   private void showScanningUnavailable() {
@@ -483,6 +555,7 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
   }
 
   private void createAndShareDiagnostics() {
+    ScannerLog.i(TAG, "device_diagnostics_export_requested");
     new Thread(() -> {
       try {
         DeviceCapabilities.ArCoreInfo arCore =

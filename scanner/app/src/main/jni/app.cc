@@ -438,6 +438,20 @@ namespace oc {
         }
     }
 
+    bool App::FinalizeDatasetCapture() {
+        OnToggleButtonClicked(false);
+        OnPause();
+        // Every accepted frame writes state.txt last. Waiting for the binder
+        // lock guarantees that an in-flight reconstruction has finished all
+        // image, pose and point-cloud writes before Java moves the directory.
+        reconstruction.binder_mutex_.lock();
+        bool usable = reconstruction.dataset != nullptr &&
+                      reconstruction.texturize.GetLatestIndex(reconstruction.dataset) >= 0;
+        reconstruction.binder_mutex_.unlock();
+        LOGI("Dataset capture finalized: %s", usable ? "usable" : "empty");
+        return usable;
+    }
+
     void App::Extract(std::string path, int mode) {
         reconstruction.binder_mutex_.lock();
         reconstruction.render_mutex_.lock();
@@ -1095,6 +1109,11 @@ Java_com_lvonasek_arcore3dscanner_main_JNI_onUndoPreviewUpdate(JNIEnv *env, jcla
 JNIEXPORT void JNICALL
 Java_com_lvonasek_arcore3dscanner_main_JNI_onPause(JNIEnv*, jclass) {
     app.OnPause();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_finalizeDatasetCapture(JNIEnv*, jclass) {
+    return (jboolean) app.FinalizeDatasetCapture();
 }
 
 JNIEXPORT void JNICALL

@@ -259,7 +259,11 @@ class FileAdapter extends BaseAdapter
             }
             mIcons.put(name, d);
           }
-          mContext.runOnUiThread(() -> view.setImageDrawable(d));
+          mContext.runOnUiThread(() -> {
+            view.setPadding(0, 0, 0, 0);
+            view.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            view.setImageDrawable(d);
+          });
         }
       } catch (Exception e) {
         e.printStackTrace();
@@ -276,9 +280,13 @@ class FileAdapter extends BaseAdapter
     AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
     builder.setView(R.layout.dialog_scan);
     Dialog dialog = builder.create();
-    dialog.getWindow().setBackgroundDrawable(mContext.getDrawable(R.drawable.background_dialog));
     dialog.show();
+    if (dialog.getWindow() != null) {
+      dialog.getWindow().setBackgroundDrawable(
+          mContext.getDrawable(R.drawable.background_dialog));
+    }
     ((TextView)dialog.findViewById(R.id.name)).setText(R.string.export);
+    ((TextView)dialog.findViewById(R.id.subtitle)).setText(R.string.export_mode_subtitle);
 
 
     ArrayList<Drawable> icons = new ArrayList<>();
@@ -286,7 +294,7 @@ class FileAdapter extends BaseAdapter
     values.add(mContext.getString(R.string.export_model));
     values.add(mContext.getString(R.string.export_floorplan));
     values.add(mContext.getString(R.string.export_pointcloud));
-    icons.add(mContext.getDrawable(R.drawable.ic_type_scan));
+    icons.add(mContext.getDrawable(R.drawable.ic_type_model));
     icons.add(mContext.getDrawable(R.drawable.ic_type_floorplan));
     icons.add(mContext.getDrawable(R.drawable.ic_type_pointcloud));
 

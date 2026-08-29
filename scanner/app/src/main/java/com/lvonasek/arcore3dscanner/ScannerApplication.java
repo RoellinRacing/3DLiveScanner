@@ -4,6 +4,9 @@ import android.app.Application;
 import android.content.Context;
 import android.os.Build;
 import android.os.Process;
+import android.preference.PreferenceManager;
+
+import com.lvonasek.arcore3dscanner.diagnostics.ScannerLog;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -26,7 +29,22 @@ public final class ScannerApplication extends Application {
   @Override
   public void onCreate() {
     super.onCreate();
+    ScannerLog.initialize(this);
+    applyStableScanDefaults();
     installCrashHandler();
+  }
+
+  private void applyStableScanDefaults() {
+    final String migration = "KEY_STABLE_SCAN_DEFAULTS_305";
+    android.content.SharedPreferences preferences =
+        PreferenceManager.getDefaultSharedPreferences(this);
+    if (preferences.getBoolean(migration, false)) return;
+    preferences.edit()
+        .putBoolean(getString(R.string.pref_clear), false)
+        .putBoolean(getString(R.string.pref_fullhd), true)
+        .putBoolean(migration, true)
+        .apply();
+    ScannerLog.i("APP", "stable_scan_defaults_applied space_clearing=false fullhd=true");
   }
 
   public static File getPendingCrashReport(Context context) {
@@ -45,6 +63,7 @@ public final class ScannerApplication extends Application {
     Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
       if (handlingCrash.compareAndSet(false, true)) {
         try {
+          ScannerLog.e("CRASH", "uncaught_exception thread=" + thread.getName(), error);
           writeCrashReport(thread, error);
         } catch (Throwable ignored) {
           // A crash reporter must never hide or replace the original exception.

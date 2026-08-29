@@ -18,11 +18,18 @@ public class ArrayAdapterWithIcons extends BaseAdapter {
     private Context context;
     private List<Drawable> icons;
     private List<String> strings;
+    private List<String> descriptions;
 
     public ArrayAdapterWithIcons(Context context, List<String> strings, List<Drawable> icons) {
+        this(context, strings, icons, null);
+    }
+
+    public ArrayAdapterWithIcons(Context context, List<String> strings, List<Drawable> icons,
+                                 List<String> descriptions) {
         this.context = context;
         this.icons = icons;
         this.strings = strings;
+        this.descriptions = descriptions;
     }
 
     @Override
@@ -47,6 +54,15 @@ public class ArrayAdapterWithIcons extends BaseAdapter {
 
         TextView text = view.findViewById(R.id.name);
         text.setText(strings.get(i));
+
+        TextView description = view.findViewById(R.id.description);
+        if (descriptions != null && i < descriptions.size()
+                && descriptions.get(i) != null && !descriptions.get(i).isEmpty()) {
+            description.setText(descriptions.get(i));
+            description.setVisibility(View.VISIBLE);
+        } else {
+            description.setVisibility(View.GONE);
+        }
 
         ImageView icon = view.findViewById(R.id.icon);
         icon.setImageDrawable(icons.get(i));
