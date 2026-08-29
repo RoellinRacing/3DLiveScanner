@@ -130,13 +130,13 @@ class FileAdapter extends BaseAdapter
     //set icon
     boolean hasExtension = false;
     ImageView icon = view.findViewById(R.id.icon);
-    icon.setImageDrawable(mContext.getDrawable(R.drawable.ic_folder));
+    icon.setImageDrawable(mContext.getDrawable(R.drawable.scanner_icon_folder));
     if (key.compareTo(mContext.getString(R.string.folder_up)) == 0) {
-      icon.setImageDrawable(mContext.getDrawable(R.drawable.ic_folder_up));
+      icon.setImageDrawable(mContext.getDrawable(R.drawable.scanner_icon_folder_up));
     }
     for (String ext : Exporter.FILE_EXT) {
       if (key.endsWith(ext)) {
-        icon.setImageDrawable(mContext.getDrawable(R.drawable.ic_model_icon));
+        icon.setImageDrawable(mContext.getDrawable(R.drawable.scanner_icon_model));
         hasExtension = true;
         break;
       }
@@ -295,8 +295,8 @@ class FileAdapter extends BaseAdapter
     values.add(mContext.getString(R.string.export_floorplan));
     values.add(mContext.getString(R.string.export_pointcloud));
     icons.add(mContext.getDrawable(R.drawable.ic_type_model));
-    icons.add(mContext.getDrawable(R.drawable.ic_type_floorplan));
-    icons.add(mContext.getDrawable(R.drawable.ic_type_pointcloud));
+    icons.add(mContext.getDrawable(R.drawable.scanner_mode_floorplan));
+    icons.add(mContext.getDrawable(R.drawable.scanner_mode_pointcloud));
 
     SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(mContext);
     ArrayAdapterWithIcons adapter = new ArrayAdapterWithIcons(mContext, values, icons);

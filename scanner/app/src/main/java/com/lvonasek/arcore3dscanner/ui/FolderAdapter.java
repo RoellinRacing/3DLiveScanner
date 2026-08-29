@@ -63,13 +63,13 @@ class FolderAdapter extends BaseAdapter
 
     //set icon
     View icon = view.findViewById(R.id.icon);
-    icon.setBackground(mContext.getDrawable(R.drawable.ic_folder));
+    icon.setBackground(mContext.getDrawable(R.drawable.scanner_icon_folder));
     if (key.compareTo(mContext.getString(R.string.folder_new)) == 0) {
       if (!new File(mPath, key).exists()) {
-        icon.setBackground(mContext.getDrawable(R.drawable.ic_folder_new));
+        icon.setBackground(mContext.getDrawable(R.drawable.scanner_icon_folder_new));
       }
     } else if (key.compareTo(mContext.getString(R.string.folder_up)) == 0) {
-      icon.setBackground(mContext.getDrawable(R.drawable.ic_folder_up));
+      icon.setBackground(mContext.getDrawable(R.drawable.scanner_icon_folder_up));
     }
 
     //set open action

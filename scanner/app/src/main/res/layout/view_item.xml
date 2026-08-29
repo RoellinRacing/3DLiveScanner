@@ -19,7 +19,7 @@
         android:clipToOutline="true"
         android:padding="22dp"
         android:scaleType="centerInside"
-        android:src="@drawable/ic_model_icon" />
+        android:src="@drawable/scanner_icon_model" />
 
     <TextView
         android:id="@+id/name"
@@ -42,7 +42,7 @@
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true"
         android:layout_margin="8dp"
-        android:background="@drawable/ic_dataset" />
+        android:background="@drawable/scanner_icon_dataset" />
 
     <View
         android:id="@+id/selection"

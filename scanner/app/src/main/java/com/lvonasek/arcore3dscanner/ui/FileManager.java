@@ -404,11 +404,11 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
     ArrayList<String> values = new ArrayList<>();
     ArrayList<String> descriptions = new ArrayList<>();
     ArrayList<String> modes = new ArrayList<>();
-    icons.add(getDrawable(R.drawable.ic_type_scan));
+    icons.add(getDrawable(R.drawable.scanner_mode_scan));
     values.add(getString(R.string.mode_realtime));
     descriptions.add(getString(R.string.mode_realtime_description));
     modes.add("realtime");
-    icons.add(getDrawable(R.drawable.ic_type_dataset));
+    icons.add(getDrawable(R.drawable.scanner_mode_dataset));
     values.add(getString(R.string.mode_dataset));
     descriptions.add(getString(R.string.mode_dataset_description));
     modes.add("dataset");
