@@ -38,7 +38,22 @@ android {
             useLegacyPackaging true
         }
     }
+    // Public, non-production key for the sideloaded MAX debug package. Keeping
+    // this key stable lets every CI artifact update the previous installation
+    // instead of Android rejecting each build because of a random runner key.
+    signingConfigs {
+        scannerMaxDebug {
+            storeFile file('scannermax-debug.keystore')
+            storePassword 'scannermax-debug'
+            keyAlias 'scannermax'
+            keyPassword 'scannermax-debug'
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.scannerMaxDebug
+        }
         release {
             minifyEnabled true
             shrinkResources true
