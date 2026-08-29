@@ -53,7 +53,16 @@ namespace oc {
                                    bool distortion, bool offset, bool flashlight, int mode,
                                    bool clearing, std::string dataset_path) {
 
+        if (ar) {
+            delete ar;
+            ar = nullptr;
+        }
         ar = new ARCoreService(env, context, (ARCoreService::Mode)mode, flashlight);
+        if (!ar || !ar->IsReady()) {
+            delete ar;
+            ar = nullptr;
+            return false;
+        }
         ar->SetOffset(offset ? (float) fabs(res) : 0);
         ar->SetResolution((float)fabs(res));
         reconstruction.Setup(res, dmin, dmax, noise, holesFilling, poseCorrection, distortion, clearing, dataset_path);
@@ -66,6 +75,10 @@ namespace oc {
         } else {
             return false;
         }
+    }
+
+    int App::GetRuntimeCapabilities() {
+        return ar ? ar->GetRuntimeCapabilities() : 0;
     }
 
     void App::OnSurfaceChanged(int width, int height, bool fullhd) {
@@ -1039,6 +1052,11 @@ Java_com_lvonasek_arcore3dscanner_main_JNI_onARServiceConnected(JNIEnv* env, jcl
         jboolean distortion, jboolean offset, jboolean flashlight, jint mode, jboolean clearing, jbyteArray dataset) {
     return app.OnARServiceConnected(env, context, res, dmin, dmax, noise, holesFilling, poseCorr,
                                     distortion, offset, flashlight, mode, clearing, jbyteArray2string(env, dataset));
+}
+
+JNIEXPORT jint JNICALL
+Java_com_lvonasek_arcore3dscanner_main_JNI_getRuntimeCapabilities(JNIEnv*, jclass) {
+    return app.GetRuntimeCapabilities();
 }
 
 JNIEXPORT void JNICALL

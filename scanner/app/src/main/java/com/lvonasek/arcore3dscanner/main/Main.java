@@ -203,8 +203,15 @@ public class Main extends AbstractActivity implements View.OnClickListener,
     JNI.setTextureParams(decimation, texture_res, texture_max);
     if (!JNI.onARServiceConnected(this, res, dmin, dmax, noise, holes, poses, disto, offst,
                               flash, mode, clear, t.getBytes())) {
-      showAndroidBugDialog();
+      showArRuntimeFailureDialog();
       return;
+    }
+    int runtimeCapabilities = JNI.getRuntimeCapabilities();
+    if (mArCoreInfo != null && mode <= 2) {
+      mArCoreInfo.runtimeSessionCreated = (runtimeCapabilities & 1) != 0;
+      mArCoreInfo.automaticDepth = (runtimeCapabilities & 2) != 0;
+      mArCoreInfo.rawDepth = (runtimeCapabilities & 4) != 0;
+      mArCoreInfo.hardwareDepthCameraConfig = (runtimeCapabilities & 8) != 0;
     }
     JNI.onToggleButtonClicked(m3drRunning);
     mCameraControl.updateView();
@@ -1135,6 +1142,23 @@ public class Main extends AbstractActivity implements View.OnClickListener,
         d.getWindow().setBackgroundDrawable(getDrawable(R.drawable.background_dialog));
         d.setOnDismissListener(dialog12 -> System.exit(0));
         d.show();
+      }
+    });
+  }
+
+  private void showArRuntimeFailureDialog() {
+    runOnUiThread(() -> {
+      if (isFinishing() || isDestroyed()) return;
+      AlertDialog dialog = new AlertDialog.Builder(Main.this)
+          .setTitle(R.string.scan_runtime_start_failed_title)
+          .setMessage(R.string.scan_runtime_start_failed_message)
+          .setPositiveButton(android.R.string.ok, (value, which) -> finish())
+          .create();
+      dialog.setOnCancelListener(value -> finish());
+      dialog.show();
+      if (dialog.getWindow() != null) {
+        dialog.getWindow().setBackgroundDrawable(
+            getDrawable(R.drawable.background_dialog));
       }
     });
   }

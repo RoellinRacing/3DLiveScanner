@@ -24,6 +24,9 @@ public class JNI
                                                     boolean poseCorr, boolean distortion, boolean offset,
                                                     boolean flashlight, int mode, boolean clearing, byte[] temp);
 
+  // bit 0 ready, bit 1 depth, bit 2 raw depth, bit 3 hardware depth
+  public static native int getRuntimeCapabilities();
+
   // Setup the view port width and height.
   public static native void onGlSurfaceChanged(int width, int height, boolean fullhd);
 

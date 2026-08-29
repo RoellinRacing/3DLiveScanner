@@ -406,8 +406,7 @@ public class FileManager extends AbstractActivity implements View.OnClickListene
       // up caused fragile OEM runtimes to terminate the process before the
       // project screen could even be shown.
       try {
-        if (!Compatibility.hasKnownFatalArCoreRuntime()
-            && !Compatibility.isHuaweiArEngineAvailable(this)
+        if (!Compatibility.isHuaweiArEngineAvailable(this)
             && Compatibility.isARCoreInstallRequired(this)) {
           if (ArCoreApk.getInstance().requestInstall(this, true)
               != ArCoreApk.InstallStatus.INSTALLED) {

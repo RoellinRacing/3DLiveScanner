@@ -110,14 +110,17 @@ namespace oc {
                         ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_RAW_DEPTH_ONLY);
                         useDepth = true;
                         useDepthRaw = true;
+                    } else if (automaticDepthSupported) {
+                        // AUTOMATIC is dense and temporally smoothed, which is
+                        // the best input for meshing on phones without a depth
+                        // camera exposed through ARCore.
+                        ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_AUTOMATIC);
+                        useDepth = true;
+                        useDepthRaw = false;
                     } else if (rawDepthSupported) {
                         ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_RAW_DEPTH_ONLY);
                         useDepth = true;
                         useDepthRaw = true;
-                    } else if (automaticDepthSupported) {
-                        ArConfig_setDepthMode(ar_session_, ar_config, AR_DEPTH_MODE_AUTOMATIC);
-                        useDepth = true;
-                        useDepthRaw = false;
                     }
                 }
 

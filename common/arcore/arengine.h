@@ -56,6 +56,10 @@ namespace oc {
         void SetResolution(float res) { resolution = res; }
 
         Image* GetDepthMap(bool confidence, bool increasing, int s = 1);
+
+        bool IsReady() const {
+            return (ar_session_ != nullptr) && (ar_frame_ != nullptr);
+        }
     private:
         bool UpdateAnchor();
 

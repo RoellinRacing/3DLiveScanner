@@ -26,4 +26,6 @@
     <string name="photo_scan_export_failed" tools:ignore="MissingTranslation">The photo dataset could not be exported.</string>
     <string name="photo_scan_saved" tools:ignore="MissingTranslation">Photo dataset saved</string>
     <string name="photo_scan_share_chooser" tools:ignore="MissingTranslation">Share photo-to-3D dataset</string>
+    <string name="scan_runtime_start_failed_title" tools:ignore="MissingTranslation">Scanner could not start</string>
+    <string name="scan_runtime_start_failed_message" tools:ignore="MissingTranslation">The installed ARCore runtime was detected, but its native scanning session could not be started. The app stopped safely instead of crashing.</string>
 </resources>

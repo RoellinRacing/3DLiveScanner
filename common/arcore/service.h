@@ -50,6 +50,11 @@ namespace oc {
 
         Mode GetMode();
 
+        bool IsReady();
+
+        // bit 0 ready, bit 1 depth, bit 2 raw depth, bit 3 hardware depth
+        int GetRuntimeCapabilities();
+
         bool HasCoordinateSystem();
 
         std::vector<glm::mat4> GetPose();

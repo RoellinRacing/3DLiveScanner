@@ -25,9 +25,15 @@ namespace oc {
                 }
             }
 
-            HwArSession_create(env, context, &ar_session_);
+            if ((HwArSession_create(env, context, &ar_session_) != HWAR_SUCCESS)
+                    || !ar_session_) {
+                return;
+            }
             HwArConfig *ar_config = nullptr;
             HwArConfig_create(ar_session_, &ar_config);
+            if (!ar_config) {
+                return;
+            }
             HwArConfig_setCameraLensFacing(ar_session_, ar_config, faceMode ? HWAR_CAMERA_FACING_FRONT : HWAR_CAMERA_FACING_REAR);
             HwArConfig_setFocusMode(ar_session_, ar_config, HWAR_FOCUS_MODE_AUTO);
             HwArConfig_setPlaneFindingMode(ar_session_, ar_config, HWAR_PLANE_FINDING_MODE_DISABLED);
@@ -49,15 +55,17 @@ namespace oc {
                 }
             }
 
-            HwArSession_configure(ar_session_, ar_config);
+            HwArStatus configureStatus = HwArSession_configure(ar_session_, ar_config);
             HwArConfig_destroy(ar_config);
-            HwArFrame_create(ar_session_, &ar_frame_);
+            if (configureStatus == HWAR_SUCCESS) {
+                HwArFrame_create(ar_session_, &ar_frame_);
+            }
         }
     }
 
     AREngine::~AREngine() {
-        HwArSession_destroy(ar_session_);
-        HwArFrame_destroy(ar_frame_);
+        if (ar_frame_) HwArFrame_destroy(ar_frame_);
+        if (ar_session_) HwArSession_destroy(ar_session_);
     }
 
     void AREngine::Clear(bool detach) {

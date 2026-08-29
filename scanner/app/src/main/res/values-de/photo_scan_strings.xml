@@ -26,4 +26,6 @@
     <string name="photo_scan_export_failed">Der Fotodatensatz konnte nicht exportiert werden.</string>
     <string name="photo_scan_saved">Fotodatensatz gespeichert</string>
     <string name="photo_scan_share_chooser">Foto-zu-3D-Datensatz teilen</string>
+    <string name="scan_runtime_start_failed_title">Scanner konnte nicht starten</string>
+    <string name="scan_runtime_start_failed_message">Die installierte ARCore-Laufzeit wurde erkannt, aber ihre native Scan-Session konnte nicht gestartet werden. Die App wurde sicher gestoppt, statt abzustürzen.</string>
 </resources>

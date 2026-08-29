@@ -57,7 +57,6 @@ public class Compatibility {
 
     public static boolean isARSupported(Context context) {
         if (context == null) return false;
-        if (hasKnownFatalArCoreRuntime()) return isHuaweiSessionUsable(context);
         ArCoreApk.Availability availability = getArCoreAvailability(context);
         if (availability == ArCoreApk.Availability.SUPPORTED_INSTALLED
                 || availability == ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD
@@ -76,19 +75,7 @@ public class Compatibility {
     }
 
     public static boolean isARCoreReady(Context context) {
-        if (hasKnownFatalArCoreRuntime()) return false;
         return getArCoreAvailability(context) == ArCoreApk.Availability.SUPPORTED_INSTALLED;
-    }
-
-    /** Device/OS combination confirmed by a native tombstone to null-call in ARCore. */
-    public static boolean hasKnownFatalArCoreRuntime() {
-        if (Build.VERSION.SDK_INT < 36) return false;
-        String device = String.valueOf(Build.DEVICE);
-        String product = String.valueOf(Build.PRODUCT);
-        String fingerprint = String.valueOf(Build.FINGERPRINT);
-        return "aurora".equalsIgnoreCase(device)
-                || "aurora".equalsIgnoreCase(product)
-                || fingerprint.toLowerCase().contains("xiaomi/aurora/");
     }
 
     /** Whether ARCore can be installed/updated for this device catalogue entry. */
@@ -114,7 +101,6 @@ public class Compatibility {
     }
 
     public static boolean isARCoreSupportedAndUpToDate(Activity activity) {
-        if (hasKnownFatalArCoreRuntime()) return false;
         // Make sure ARCore is installed and supported on this device.
         ArCoreApk.Availability availability = getArCoreAvailability(activity);
         switch (availability) {

@@ -22,6 +22,7 @@ namespace oc {
                                   double dmax, int noise, bool holesFilling, bool poseCorrection,
                                   bool distortion, bool offset, bool flashlight, int mode,
                                   bool clearing, std::string dataset);
+        int GetRuntimeCapabilities();
         void OnSurfaceChanged(int width, int height, bool fullhd);
         bool OnDrawFrame(bool facemode, float compassYaw, int viewmode, bool anchors, bool grid, bool smooth);
         bool OnDrawScan(glm::vec3 pos, bool zoomable);

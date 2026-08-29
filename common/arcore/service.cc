@@ -143,6 +143,25 @@ namespace oc {
         return mode_;
     }
 
+    bool ARCoreService::IsReady() {
+        if (mode_ >= HUAWEI_SFM)
+            return huawei && huawei->IsReady();
+        return google && google->IsReady();
+    }
+
+    int ARCoreService::GetRuntimeCapabilities() {
+        if (!IsReady()) return 0;
+        int capabilities = 1;
+        if (mode_ >= HUAWEI_SFM) {
+            if (mode_ == HUAWEI_TOF) capabilities |= 2 | 8;
+            return capabilities;
+        }
+        if (google->IsDepthEnabled()) capabilities |= 2;
+        if (google->IsRawDepthEnabled()) capabilities |= 4;
+        if (google->HasHardwareDepthSensor()) capabilities |= 8;
+        return capabilities;
+    }
+
     std::vector<glm::vec4> ARCoreService::GetPointCloud(float maxDiff) {
         std::vector<glm::vec4> output;
         bool validFrame = !GetActiveAnchors().empty() || IsFaceMode();

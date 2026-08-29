@@ -58,6 +58,16 @@ namespace oc {
 
         Image* GetDepthMap(bool confidence, bool increasing, int s = 1);
 
+        bool IsReady() const { return session_ready_; }
+
+        bool IsDepthEnabled() const { return session_ready_ && useDepth; }
+
+        bool IsRawDepthEnabled() const { return session_ready_ && useDepthRaw; }
+
+        bool HasHardwareDepthSensor() const {
+            return session_ready_ && has_depth_sensor;
+        }
+
     private:
         glm::mat4 GetMatrix(ArPose* ar_pose);
 
