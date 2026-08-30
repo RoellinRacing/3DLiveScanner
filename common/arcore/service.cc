@@ -89,7 +89,10 @@ namespace oc {
 
             float value = oc::GLCamera::Diff(pos, image_position, rot, image_rotation);
             if (last_diff >= 0) {
-                last_diff = value > last_diff ? value : 0.95f * last_diff + 0.05f * value;
+                // Preserve immediate jump detection, but recover quickly once
+                // subsequent poses are stable. The old 5% decay could block
+                // depth integration for many seconds after one OEM pose spike.
+                last_diff = value > last_diff ? value : 0.75f * last_diff + 0.25f * value;
             } else {
                 last_diff = value;
             }

@@ -65,22 +65,22 @@ namespace oc {
             ar = nullptr;
             return false;
         }
-        ar->SetOffset(offset ? (float) fabs(res) : 0);
-        ar->SetResolution((float)fabs(res));
-        ar->SetDepthRange((float)dmin, (float)dmax);
-
-        // Dense AUTOMATIC depth is already temporally filtered by ARCore. The
-        // legacy default of nine required vertices removes too much useful
-        // surface on motion-depth-only phones. A three-vertex minimum keeps a
-        // triangle while the spatial depth filter rejects isolated pixels.
-        int effectiveNoise = noise;
         const int capabilities = ar->GetRuntimeCapabilities();
         const bool automaticOnly = (capabilities & 2) && !(capabilities & 4) && !(capabilities & 8);
-        if (automaticOnly && effectiveNoise > 3)
-            effectiveNoise = 3;
-        scanNoise = effectiveNoise;
-        scanResolution = fabs(res);
-        reconstruction.Setup(res, dmin, dmax, effectiveNoise, holesFilling, poseCorrection,
+        double effectiveResolution = fabs(res);
+        // The Xiaomi automatic depth stream is only 160x90. The original
+        // 12 mm voxel size produced geometry reliably; 8 mm left its updated
+        // grid segments empty before enough stable depth frames accumulated.
+        if (automaticOnly && effectiveResolution < 0.012)
+            effectiveResolution = 0.012;
+        const double signedResolution = res < 0 ? -effectiveResolution : effectiveResolution;
+
+        ar->SetOffset(offset ? (float)effectiveResolution : 0);
+        ar->SetResolution((float)effectiveResolution);
+        ar->SetDepthRange((float)dmin, (float)dmax);
+        scanNoise = noise;
+        scanResolution = effectiveResolution;
+        reconstruction.Setup(signedResolution, dmin, dmax, noise, holesFilling, poseCorrection,
                              distortion, clearing, dataset_path);
 
         std::string access = reconstruction.dataset->GetPath() + "/test.txt";
@@ -100,6 +100,7 @@ namespace oc {
     std::string App::GetScanTelemetry() {
         reconstruction.render_mutex_.lock();
         const int capabilities = ar ? ar->GetRuntimeCapabilities() : 0;
+        const float poseDiff = ar ? ar->GetPoseDiff() : -1;
         const DepthTelemetry depth = ar ? ar->GetDepthTelemetry() : DepthTelemetry();
         long long meshVertices = 0;
         long long meshFaces = 0;
@@ -122,6 +123,7 @@ namespace oc {
                << " mesh_faces=" << meshFaces
                << " resolution_mm=" << (int)lround(scanResolution * 1000.0)
                << " mesher_min_vertices=" << scanNoise
+               << " pose_diff=" << poseDiff
                << " depth_mode=" << depthMode
                << " depth_size=" << depth.width << "x" << depth.height
                << " depth_fresh=" << depth.fresh_frames
@@ -131,9 +133,10 @@ namespace oc {
                << " depth_sampled=" << depth.sampled
                << " depth_valid=" << depth.valid
                << " depth_points=" << depth.accepted
+               << " depth_raw_mm=" << depth.raw_min_mm << ".." << depth.raw_max_mm
                << " depth_filled=" << depth.hole_filled
                << " depth_outliers=" << depth.rejected_outlier
-               << " depth_range_rejects=" << depth.rejected_range
+               << " depth_out_of_range=" << depth.rejected_range
                << " feature_points=" << depth.feature_points;
         return output.str();
     }

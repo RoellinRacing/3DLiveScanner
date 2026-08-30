@@ -19,6 +19,8 @@ namespace oc {
         int hole_filled = 0;
         int rejected_outlier = 0;
         int rejected_range = 0;
+        int raw_min_mm = 0;
+        int raw_max_mm = 0;
         int feature_points = 0;
         int acquire_status = 0;
         long long fresh_frames = 0;
