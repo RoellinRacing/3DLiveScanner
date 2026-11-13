@@ -2,6 +2,7 @@ name: Android Scanner APK
 
 on:
   push:
+    tags: ['scanner-v*']
     branches:
       - codex/full-reengineering-v3
       - main
@@ -66,7 +67,7 @@ jobs:
             scanner/app/build/outputs/apk/debug/3DLiveScanner-Max.apk.sha256
           if-no-files-found: error
           compression-level: 0
-          retention-days: 30
+          retention-days: 3
       - name: Upload lint reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -74,4 +75,30 @@ jobs:
           name: 3DLiveScanner-lint-${{ github.sha }}
           path: scanner/app/build/reports/lint-results-debug.*
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 3
+
+  release:
+    name: Preserve validated tagged build in Releases
+    if: startsWith(github.ref, 'refs/tags/scanner-v')
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: 3DLiveScanner-Max-${{ github.sha }}
+          path: release
+      - name: Publish once and preserve existing release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd release && sha256sum *.apk > SHA256SUMS)
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; preserving published assets."
+          else
+            gh release create "$GITHUB_REF_NAME" release/*.apk release/*.sha256 release/SHA256SUMS --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$GITHUB_REF_NAME" --notes "Validated tagged build. Source: $GITHUB_SHA. Temporary Actions artifacts expire after 3 days."
+          fi
